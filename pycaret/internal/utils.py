@@ -2,18 +2,12 @@
 # Author: Moez Ali <moez.ali@queensu.ca> and Antoni Baum (Yard1) <antoni.baum@protonmail.com>
 # License: MIT
 
-import os
 import numpy as np
 from pycaret.containers.metrics.base_metric import MetricContainer
 from pycaret.containers.models.base_model import ModelContainer
-import pandas as pd
 import pandas.io.formats.style
-import ipywidgets as ipw
-from IPython.display import display, HTML, clear_output, update_display
-from pycaret.internal.logging import get_logger
 from pycaret.internal.validation import *
 from typing import Any, List, Optional, Dict, Tuple, Union
-from sklearn import clone
 from sklearn.model_selection import KFold, StratifiedKFold, BaseCrossValidator
 from sklearn.model_selection._split import _BaseKFold
 

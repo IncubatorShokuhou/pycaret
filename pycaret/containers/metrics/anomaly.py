@@ -11,10 +11,8 @@
 from typing import Optional, Union, Dict, Any
 from pycaret.containers.metrics.base_metric import MetricContainer
 from sklearn.metrics._scorer import _BaseScorer
-import pycaret.containers.base_container
+import pycaret.containers.models.base_container
 import pycaret.internal.metrics
-import numpy as np
-from sklearn import metrics
 
 
 class AnomalyMetricContainer(MetricContainer):
@@ -165,6 +163,6 @@ class AnomalyMetricContainer(MetricContainer):
 def get_all_metric_containers(
     globals_dict: dict, raise_errors: bool = True
 ) -> Dict[str, AnomalyMetricContainer]:
-    return pycaret.containers.base_container.get_all_containers(
+    return pycaret.containers.models.base_container.get_all_containers(
         globals(), globals_dict, AnomalyMetricContainer, raise_errors
     )

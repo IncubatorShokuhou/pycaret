@@ -3,9 +3,8 @@
 # License: MIT
 # Release: PyCaret 2.2
 # Last modified : 26/08/2020
-
+from loguru import logger as lll
 from enum import Enum, auto
-import math
 from pycaret.internal.meta_estimators import (
     PowerTransformedTargetRegressor,
     get_estimator_from_meta_estimator,
@@ -29,21 +28,21 @@ from pycaret.internal.utils import (
 )
 import pycaret.internal.patches.sklearn
 import pycaret.internal.patches.yellowbrick
-from pycaret.internal.logging import get_logger
 from pycaret.internal.plots.yellowbrick import show_yellowbrick_plot
 from pycaret.internal.plots.helper import MatplotlibDefaultDPI
-from pycaret.internal.Display import Display, is_in_colab
+from pycaret.internal.Display import is_in_colab
 from pycaret.internal.distributions import *
 from pycaret.internal.validation import *
 from pycaret.internal.tunable import TunableMixin
+from pycaret.internal.logging import get_logger
 import pycaret.containers.metrics.classification
 import pycaret.containers.metrics.regression
 import pycaret.containers.metrics.clustering
 import pycaret.containers.metrics.anomaly
-import pycaret.containers.models.classification
-import pycaret.containers.models.regression
-import pycaret.containers.models.clustering
-import pycaret.containers.models.anomaly
+import pycaret.containers.models.local.classification
+import pycaret.containers.models.local.regression
+import pycaret.containers.models.local.clustering
+import pycaret.containers.models.local.anomaly
 import pycaret.internal.preprocess
 import pandas as pd
 import numpy as np
@@ -53,10 +52,8 @@ import datetime
 import time
 import random
 import gc
-import multiprocessing
 from copy import deepcopy
 from sklearn.base import clone
-from sklearn.exceptions import NotFittedError
 from sklearn.compose import TransformedTargetRegressor
 from sklearn.preprocessing import LabelEncoder
 from typing import List, Tuple, Any, Union, Optional, Dict
@@ -152,7 +149,9 @@ def setup(
     fold_shuffle: bool = False,
     fold_groups: Optional[Union[str, pd.DataFrame]] = None,
     n_jobs: Optional[int] = -1,
+    use_dask: bool = False,  # added for dask support
     use_gpu: bool = False,  # added in pycaret==2.1
+    n_jobs_gpu: Optional[int] = 0,
     custom_pipeline: Union[
         Any, Tuple[str, Any], List[Any], List[Tuple[str, Any]]
     ] = None,
@@ -227,6 +226,22 @@ def setup(
         )
 
     logger.info("Checking libraries")
+    # put all package and version checking at the very beginning
+    if use_gpu:
+        try:
+            from cuml import __version__
+            cuml_version = __version__
+            logger.info(f"cuml=={cuml_version}")
+        except:
+            logger.warning(f"cuML not found")
+            cuml_version = None
+
+        if cuml_version is None or not version.parse(cuml_version) >= version.parse("0.15"):
+            message = f"cuML is outdated or not found. Required version is >=0.15, got {__version__}"
+            if use_gpu == "force":
+                raise ImportError(message)
+            else:
+                logger.warning(message)
 
     try:
         from pandas import __version__
@@ -757,7 +772,7 @@ def setup(
 
     # declaring global variables to be accessed by other functions
     logger.info("Declaring global variables")
-    global _ml_usecase, USI, html_param, X, y, X_train, X_test, y_train, y_test, seed, prep_pipe, experiment__, fold_shuffle_param, n_jobs_param, _gpu_n_jobs_param, create_model_container, master_model_container, display_container, exp_name_log, logging_param, log_plots_param, fix_imbalance_param, fix_imbalance_method_param, transform_target_param, transform_target_method_param, data_before_preprocess, target_param, gpu_param, _all_models, _all_models_internal, _all_metrics, _internal_pipeline, stratify_param, fold_generator, fold_param, fold_groups_param, fold_groups_param_full, imputation_regressor, imputation_classifier, iterative_imputation_iters_param
+    global _ml_usecase, USI, html_param, X, y, X_train, X_test, y_train, y_test, seed, prep_pipe, experiment__, fold_shuffle_param, n_jobs_param, n_jobs_gpu_param, _use_gpu_param, _use_dask_param, create_model_container, master_model_container, display_container, exp_name_log, logging_param, log_plots_param, fix_imbalance_param, fix_imbalance_method_param, transform_target_param, transform_target_method_param, data_before_preprocess, target_param, _all_models, _all_models_internal, _all_metrics, _internal_pipeline, stratify_param, fold_generator, fold_param, fold_groups_param, fold_groups_param_full, imputation_regressor, imputation_classifier, iterative_imputation_iters_param
 
     USI = secrets.token_hex(nbytes=2)
     logger.info(f"USI: {USI}")
@@ -783,7 +798,9 @@ def setup(
         "prep_pipe",
         "experiment__",
         "n_jobs_param",
-        "_gpu_n_jobs_param",
+        "n_jobs_gpu_param",
+        "_use_gpu_param",
+        "_use_dask_param",
         "create_model_container",
         "master_model_container",
         "display_container",
@@ -794,7 +811,7 @@ def setup(
         "transform_target_method_param",
         "data_before_preprocess",
         "target_param",
-        "gpu_param",
+        # "gpu_param",
         "_all_models",
         "_all_models_internal",
         "_all_metrics",
@@ -1007,29 +1024,13 @@ def setup(
 
     # create n_jobs_param
     n_jobs_param = n_jobs
-
-    cuml_version = None
-    if use_gpu:
-        try:
-            from cuml import __version__
- 
-            cuml_version = __version__
-            logger.info(f"cuml=={cuml_version}")
-        except:
-            logger.warning(f"cuML not found")
-
-        if cuml_version is None or not version.parse(cuml_version) >= version.parse("0.15"):
-            message = f"cuML is outdated or not found. Required version is >=0.15, got {__version__}"
-            if use_gpu == "force":
-                raise ImportError(message)
-            else:
-                logger.warning(message)
-
-    # create _gpu_n_jobs_param
-    _gpu_n_jobs_param = n_jobs if not use_gpu else 1
-
-    # create gpu_param var
-    gpu_param = use_gpu
+    if not use_gpu:
+        n_jobs_gpu_param = 0
+    else:
+        if not use_dask:
+            n_jobs_gpu_param = 1
+        else:
+            n_jobs_gpu_param = n_jobs_gpu
 
     iterative_imputation_iters_param = iterative_imputation_iters
 
@@ -1056,14 +1057,14 @@ def setup(
         iterative_imputer_models_globals["X_train"] = X_before_preprocess
         iterative_imputer_classification_models = {
             k: v
-            for k, v in pycaret.containers.models.classification.get_all_model_containers(
+            for k, v in pycaret.containers.models.local.classification.get_all_model_containers(
                 iterative_imputer_models_globals, raise_errors=True
             ).items()
             if not v.is_special
         }
         iterative_imputer_regression_models = {
             k: v
-            for k, v in pycaret.containers.models.regression.get_all_model_containers(
+            for k, v in pycaret.containers.models.local.regression.get_all_model_containers(
                 iterative_imputer_models_globals, raise_errors=True
             ).items()
             if not v.is_special
@@ -1375,63 +1376,135 @@ def setup(
     else:
         target_type = "Binary"
 
-    if _ml_usecase == MLUsecase.CLASSIFICATION:
-        _all_models = {
-            k: v
-            for k, v in pycaret.containers.models.classification.get_all_model_containers(
-                globals(), raise_errors=True
-            ).items()
-            if not v.is_special
-        }
-        _all_models_internal = pycaret.containers.models.classification.get_all_model_containers(
-            globals(), raise_errors=True
-        )
-        _all_metrics = pycaret.containers.metrics.classification.get_all_metric_containers(
-            globals(), raise_errors=True
-        )
-    elif _ml_usecase == MLUsecase.REGRESSION:
-        _all_models = {
-            k: v
-            for k, v in pycaret.containers.models.regression.get_all_model_containers(
-                globals(), raise_errors=True
-            ).items()
-            if not v.is_special
-        }
-        _all_models_internal = pycaret.containers.models.regression.get_all_model_containers(
-            globals(), raise_errors=True
-        )
-        _all_metrics = pycaret.containers.metrics.regression.get_all_metric_containers(
-            globals(), raise_errors=True
-        )
-    elif _ml_usecase == MLUsecase.CLUSTERING:
-        _all_models = {
-            k: v
-            for k, v in pycaret.containers.models.clustering.get_all_model_containers(
-                globals(), raise_errors=True
-            ).items()
-            if not v.is_special
-        }
-        _all_models_internal = pycaret.containers.models.clustering.get_all_model_containers(
-            globals(), raise_errors=True
-        )
-        _all_metrics = pycaret.containers.metrics.clustering.get_all_metric_containers(
-            globals(), raise_errors=True
-        )
-    elif _ml_usecase == MLUsecase.ANOMALY:
-        _all_models = {
-            k: v
-            for k, v in pycaret.containers.models.anomaly.get_all_model_containers(
-                globals(), raise_errors=True
-            ).items()
-            if not v.is_special
-        }
-        _all_models_internal = pycaret.containers.models.anomaly.get_all_model_containers(
-            globals(), raise_errors=True
-        )
-        _all_metrics = pycaret.containers.metrics.anomaly.get_all_metric_containers(
-            globals(), raise_errors=True
-        )
+    # global param
+    _use_gpu_param = use_gpu
+    _use_dask_param = use_dask
 
+    if not _use_dask_param: # local mode
+        if not _use_gpu_param:
+            if _ml_usecase == MLUsecase.CLASSIFICATION:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.classification.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.classification.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.classification.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+                lll.debug(f"_all_models:{_all_models}")
+                lll.debug(f"_all_models_internal:{_all_models_internal}")
+                lll.debug(f"_all_metrics:{_all_metrics}")
+            elif _ml_usecase == MLUsecase.REGRESSION:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.regression.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.regression.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.regression.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+            elif _ml_usecase == MLUsecase.CLUSTERING:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.clustering.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.clustering.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.clustering.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+            elif _ml_usecase == MLUsecase.ANOMALY:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.anomaly.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.anomaly.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.anomaly.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+        else: # use_gpu
+            if _ml_usecase == MLUsecase.CLASSIFICATION:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.cuml.classification.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.cuml.classification.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.classification.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+            elif _ml_usecase == MLUsecase.REGRESSION:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.cuml.regression.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.regression.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.regression.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+            elif _ml_usecase == MLUsecase.CLUSTERING:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.cuml.clustering.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.cuml.clustering.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.clustering.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+            elif _ml_usecase == MLUsecase.ANOMALY:
+                _all_models = {
+                    k: v
+                    for k, v in pycaret.containers.models.local.cuml.anomaly.get_all_model_containers(
+                        globals(), raise_errors=True
+                    ).items()
+                    if not v.is_special
+                }
+                _all_models_internal = pycaret.containers.models.local.cuml.anomaly.get_all_model_containers(
+                    globals(), raise_errors=True
+                )
+                _all_metrics = pycaret.containers.metrics.anomaly.get_all_metric_containers(
+                    globals(), raise_errors=True
+                )
+    else: #use dask
+        if not _use_gpu_param:  # common dask
+            pass
+            # TODO
+        else: # cuML.dask
+            pass
+            # TODO
     """
     Final display Starts
     """
@@ -1571,7 +1644,9 @@ def setup(
         )
         + [
             ["CPU Jobs", n_jobs_param],
-            ["Use GPU", gpu_param],
+            ["GPU Jobs", n_jobs_gpu_param],
+            ["Use GPU", _use_gpu_param],
+            ["Use Dask", _use_dask_param],
             ["Log Experiment", logging_param],
             ["Experiment Name", exp_name_],
             ["USI", USI],
@@ -1798,7 +1873,6 @@ def compare_models(
     verbose: bool = True,
     display: Optional[Display] = None,
 ) -> List[Any]:
-
     """
     This function train all the models available in the model library and scores them
     using Cross Validation. The output prints a score grid with Accuracy,
@@ -1918,10 +1992,9 @@ def compare_models(
     - If cross_validation param is set to False, no models will be logged with MLFlow.
 
     """
+    logger = get_logger()
 
     function_params_str = ", ".join([f"{k}={v}" for k, v in locals().items()])
-
-    logger = get_logger()
 
     logger.info("Initializing compare_models()")
     logger.info(f"compare_models({function_params_str})")
@@ -3097,7 +3170,7 @@ def create_model_supervised(
 
     logger.info("Starting cross validation")
 
-    n_jobs = _gpu_n_jobs_param
+    n_jobs = n_jobs_param
     from sklearn.gaussian_process import (
         GaussianProcessClassifier,
         GaussianProcessRegressor,
@@ -3282,7 +3355,7 @@ def tune_model_unsupervised(
         metrics = pycaret.containers.metrics.classification.get_all_metric_containers(
             temp_globals, raise_errors=True
         )
-        available_estimators = pycaret.containers.models.classification.get_all_model_containers(
+        available_estimators = pycaret.containers.models.local.classification.get_all_model_containers(
             temp_globals, raise_errors=True
         )
         ml_usecase = MLUsecase.CLASSIFICATION
@@ -3290,7 +3363,7 @@ def tune_model_unsupervised(
         metrics = pycaret.containers.metrics.regression.get_all_metric_containers(
             temp_globals, raise_errors=True
         )
-        available_estimators = pycaret.containers.models.regression.get_all_model_containers(
+        available_estimators = pycaret.containers.models.local.regression.get_all_model_containers(
             temp_globals, raise_errors=True
         )
         ml_usecase = MLUsecase.REGRESSION
@@ -4220,7 +4293,7 @@ def tune_model_supervised(
         if estimator_definition is not None:
             search_kwargs = {**estimator_definition.tune_args, **kwargs}
             n_jobs = (
-                _gpu_n_jobs_param
+                n_jobs_gpu_param
                 if estimator_definition.is_gpu_enabled
                 else n_jobs_param
             )
@@ -4353,7 +4426,7 @@ def tune_model_supervised(
                         cv=fold,
                         max_iters=early_stopping_max_iters,
                         n_jobs=n_jobs,
-                        use_gpu=gpu_param,
+                        use_gpu=True if n_jobs_gpu_param else False,
                         refit=False,
                         verbose=tuner_verbose,
                         pipeline_auto_early_stop=True,
@@ -4406,7 +4479,7 @@ def tune_model_supervised(
                         random_state=seed,
                         max_iters=early_stopping_max_iters,
                         n_jobs=n_jobs,
-                        use_gpu=gpu_param,
+                        use_gpu=True if n_jobs_gpu_param else False,
                         refit=True,
                         verbose=tuner_verbose,
                         pipeline_auto_early_stop=True,
@@ -5197,11 +5270,11 @@ def blend_models(
     voting_model_definition = _all_models_internal["Voting"]
     if _ml_usecase == MLUsecase.CLASSIFICATION:
         model = voting_model_definition.class_def(
-            estimators=estimator_list, voting=method, n_jobs=_gpu_n_jobs_param
+            estimators=estimator_list, voting=method, n_jobs=n_jobs_gpu_param
         )
     else:
         model = voting_model_definition.class_def(
-            estimators=estimator_list, n_jobs=_gpu_n_jobs_param
+            estimators=estimator_list, n_jobs=n_jobs_gpu_param
         )
 
     display.update_monitor(2, voting_model_definition.name)
@@ -5542,7 +5615,7 @@ def stack_models(
             final_estimator=meta_model,
             cv=fold,
             stack_method=method,
-            n_jobs=_gpu_n_jobs_param,
+            n_jobs=n_jobs_gpu_param,
             passthrough=restack,
         )
     else:
@@ -5550,7 +5623,7 @@ def stack_models(
             estimators=estimator_list,
             final_estimator=meta_model,
             cv=fold,
-            n_jobs=_gpu_n_jobs_param,
+            n_jobs=n_jobs_gpu_param,
             passthrough=restack,
         )
 
@@ -5920,8 +5993,6 @@ def plot_model(
     display.move_progress()
 
     # yellowbrick workaround start
-    import yellowbrick.utils.types
-    import yellowbrick.utils.helpers
 
     # yellowbrick workaround end
 
@@ -6680,7 +6751,7 @@ def plot_model(
                 pipeline_with_model,
                 cv=cv,
                 train_sizes=sizes,
-                n_jobs=_gpu_n_jobs_param,
+                n_jobs=n_jobs_gpu_param,
                 random_state=seed,
             )
             show_yellowbrick_plot(
@@ -6775,8 +6846,6 @@ def plot_model(
         def tree():
 
             from sklearn.tree import plot_tree
-            from sklearn.base import is_classifier
-            from sklearn.model_selection import check_cv
 
             is_stacked_model = False
             is_ensemble_of_forests = False
@@ -6963,7 +7032,7 @@ def plot_model(
                 # Catboost
                 if "depth" in model_params:
                     param_name = f"{actual_estimator_label}__depth"
-                    param_range = np.arange(1, 8 if gpu_param else 11)
+                    param_range = np.arange(1, 8 if n_jobs_gpu_param else 11)
 
                 # SGD Classifier
                 elif f"{actual_estimator_label}__l1_ratio" in model_params:
@@ -7021,7 +7090,7 @@ def plot_model(
                 # Catboost
                 if "depth" in model_params:
                     param_name = f"{actual_estimator_label}__depth"
-                    param_range = np.arange(1, 8 if gpu_param else 11)
+                    param_range = np.arange(1, 8 if n_jobs_gpu_param else 11)
 
                 # lasso/ridge/en/llar/huber/kr/mlp/br/ard
                 elif f"{actual_estimator_label}__alpha" in model_params:
@@ -7091,7 +7160,7 @@ def plot_model(
                 param_range=param_range,
                 cv=cv,
                 random_state=seed,
-                n_jobs=_gpu_n_jobs_param,
+                n_jobs=n_jobs_gpu_param,
             )
             show_yellowbrick_plot(
                 visualizer=viz,
@@ -8497,7 +8566,6 @@ def predict_model(
     logger.info("Preloading libraries")
 
     # general dependencies
-    from sklearn import metrics
 
     try:
         np.random.seed(seed)
@@ -9382,22 +9450,22 @@ def models(
             f"type param only accepts {', '.join(list(model_type) + str(None))}."
         )
 
-    logger.info(f"gpu_param set to {gpu_param}")
+    # logger.info(f"gpu_param set to {gpu_param}")
 
     if _ml_usecase == MLUsecase.CLASSIFICATION:
-        model_containers = pycaret.containers.models.classification.get_all_model_containers(
+        model_containers = pycaret.containers.models.local.classification.get_all_model_containers(
             globals(), raise_errors
         )
     elif _ml_usecase == MLUsecase.REGRESSION:
-        model_containers = pycaret.containers.models.regression.get_all_model_containers(
+        model_containers = pycaret.containers.models.local.regression.get_all_model_containers(
             globals(), raise_errors
         )
     elif _ml_usecase == MLUsecase.CLUSTERING:
-        model_containers = pycaret.containers.models.clustering.get_all_model_containers(
+        model_containers = pycaret.containers.models.local.clustering.get_all_model_containers(
             globals(), raise_errors
         )
     elif _ml_usecase == MLUsecase.ANOMALY:
-        model_containers = pycaret.containers.models.anomaly.get_all_model_containers(
+        model_containers = pycaret.containers.models.local.anomaly.get_all_model_containers(
             globals(), raise_errors
         )
     rows = [
@@ -9679,6 +9747,7 @@ def get_config(variable: str):
     - prep_pipe: Transformation pipeline configured through setup
     - fold_shuffle_param: shuffle parameter used in Kfolds
     - n_jobs_param: n_jobs parameter used in model training
+    - n_jobs_gpu_param: n_jobs_gpu parameter used in model training
     - html_param: html_param configured through setup
     - create_model_container: results grid storage container
     - master_model_container: model storage container
@@ -9691,7 +9760,7 @@ def get_config(variable: str):
     - fix_imbalance_method_param: fix_imbalance_method param set through setup
     - data_before_preprocess: data before preprocessing
     - target_param: name of target variable
-    - gpu_param: use_gpu param configured through setup
+    # - gpu_param: use_gpu param configured through setup
 
     Example
     -------
@@ -9794,12 +9863,12 @@ def load_config(file_name: str):
     if _ml_usecase == MLUsecase.CLASSIFICATION:
         _all_models = {
             k: v
-            for k, v in pycaret.containers.models.classification.get_all_model_containers(
+            for k, v in pycaret.containers.models.local.classification.get_all_model_containers(
                 globals(), raise_errors=True
             ).items()
             if not v.is_special
         }
-        _all_models_internal = pycaret.containers.models.classification.get_all_model_containers(
+        _all_models_internal = pycaret.containers.models.local.classification.get_all_model_containers(
             globals(), raise_errors=True
         )
         _all_metrics = pycaret.containers.metrics.classification.get_all_metric_containers(
@@ -9808,12 +9877,12 @@ def load_config(file_name: str):
     elif _ml_usecase == MLUsecase.REGRESSION:
         _all_models = {
             k: v
-            for k, v in pycaret.containers.models.regression.get_all_model_containers(
+            for k, v in pycaret.containers.models.local.regression.get_all_model_containers(
                 globals(), raise_errors=True
             ).items()
             if not v.is_special
         }
-        _all_models_internal = pycaret.containers.models.regression.get_all_model_containers(
+        _all_models_internal = pycaret.containers.models.local.regression.get_all_model_containers(
             globals(), raise_errors=True
         )
         _all_metrics = pycaret.containers.metrics.regression.get_all_metric_containers(
@@ -9822,12 +9891,12 @@ def load_config(file_name: str):
     elif _ml_usecase == MLUsecase.CLUSTERING:
         _all_models = {
             k: v
-            for k, v in pycaret.containers.models.clustering.get_all_model_containers(
+            for k, v in pycaret.containers.models.local.clustering.get_all_model_containers(
                 globals(), raise_errors=True
             ).items()
             if not v.is_special
         }
-        _all_models_internal = pycaret.containers.models.clustering.get_all_model_containers(
+        _all_models_internal = pycaret.containers.models.local.clustering.get_all_model_containers(
             globals(), raise_errors=True
         )
         _all_metrics = pycaret.containers.metrics.clustering.get_all_metric_containers(
@@ -9837,12 +9906,12 @@ def load_config(file_name: str):
     elif _ml_usecase == MLUsecase.ANOMALY:
         _all_models = {
             k: v
-            for k, v in pycaret.containers.models.anomaly.get_all_model_containers(
+            for k, v in pycaret.containers.models.local.anomaly.get_all_model_containers(
                 globals(), raise_errors=True
             ).items()
             if not v.is_special
         }
-        _all_models_internal = pycaret.containers.models.anomaly.get_all_model_containers(
+        _all_models_internal = pycaret.containers.models.local.anomaly.get_all_model_containers(
             globals(), raise_errors=True
         )
         _all_metrics = pycaret.containers.metrics.anomaly.get_all_metric_containers(

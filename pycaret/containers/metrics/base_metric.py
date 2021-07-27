@@ -3,7 +3,7 @@
 # License: MIT
 
 from typing import Dict, Any, Union, Optional
-from pycaret.containers.base_container import BaseContainer
+from pycaret.containers.models.base_container import BaseContainer
 from sklearn.metrics._scorer import _BaseScorer
 from sklearn.metrics import make_scorer
 
