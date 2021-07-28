@@ -1346,12 +1346,12 @@ def setup(
             ]
 
     display.move_progress()
-    if not _is_unsupervised(_ml_usecase):
+    if not _is_unsupervised(_ml_usecase): # supervise
         _internal_pipeline.fit(train_data.drop(target, axis=1), train_data[target])
         data = prep_pipe.transform(data_before_preprocess.copy())
         X = data.drop(target, axis=1)
         y = data[target]
-    else:
+    else: # unsupervise
         X = prep_pipe.fit_transform(train_data).drop(target, axis=1)
         X_train = X
 
@@ -2007,14 +2007,14 @@ def compare_models(
     # checking error for exclude (string)
     available_estimators = _all_models
 
-    if exclude != None:
+    if exclude is not None:
         for i in exclude:
             if i not in available_estimators:
                 raise ValueError(
                     f"Estimator Not Available {i}. Please see docstring for list of available estimators."
                 )
 
-    if include != None:
+    if include is not None:
         for i in include:
             if isinstance(i, str):
                 if i not in available_estimators:
@@ -3042,6 +3042,7 @@ def create_model_supervised(
     # Storing X_train and y_train in data_X and data_y parameter
     data_X = X_train.copy() if X_train_data is None else X_train_data.copy()
     data_y = y_train.copy() if y_train_data is None else y_train_data.copy()
+    # TODO: convert to dask.dataframe / cudf.dataframe et.al here (possiblely)
 
     # reset index
     data_X.reset_index(drop=True, inplace=True)
@@ -4312,16 +4313,6 @@ def tune_model_supervised(
 
         logger.info(f"Tuning with n_jobs={n_jobs}")
 
-        def get_optuna_tpe_sampler():
-            try:
-                tpe_sampler = optuna.samplers.TPESampler(
-                    seed=seed, multivariate=True, constant_liar=True
-                )
-            except TypeError:
-                # constant_liar added in 2.8.0
-                tpe_sampler = optuna.samplers.TPESampler(seed=seed, multivariate=True)
-            return tpe_sampler
-
         if search_library == "optuna":
             # suppress output
             logging.getLogger("optuna").setLevel(logging.WARNING)
@@ -4338,7 +4329,7 @@ def tune_model_supervised(
                 pruner = pruner_translator[early_stopping]
 
             sampler_translator = {
-                "tpe": get_optuna_tpe_sampler(),
+                "tpe": optuna.samplers.TPESampler(seed=seed),
                 "random": optuna.samplers.RandomSampler(seed=seed),
             }
             sampler = sampler_translator[search_algorithm]
@@ -4475,10 +4466,6 @@ def tune_model_supervised(
                                 "Couldn't convert param_grid to specific library distributions. Exception:"
                             )
                             logger.warning(traceback.format_exc())
-                    if search_algorithm == "optuna" and not "sampler" in search_kwargs:
-                        import optuna
-
-                        search_kwargs["sampler"] = get_optuna_tpe_sampler()
                     logger.info(
                         f"Initializing tune_sklearn.TuneSearchCV, {search_algorithm}"
                     )
