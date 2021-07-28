@@ -287,7 +287,7 @@ class KNeighborsClassifierContainer(ClassifierContainer):
         super().__init__(
             id="knn",
             name="K Neighbors Classifier",
-            class_def=clf,
+            class_def=clf,   ## TODO: how to handle it?
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,

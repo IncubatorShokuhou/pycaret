@@ -1992,7 +1992,7 @@ def compare_models(
     - If cross_validation param is set to False, no models will be logged with MLFlow.
 
     """
-    logger = get_logger()
+    # logger = get_logger()
 
     function_params_str = ", ".join([f"{k}={v}" for k, v in locals().items()])
 
@@ -2544,7 +2544,7 @@ def create_model_unsupervised(
         [f"{k}={v}" for k, v in locals().items() if k not in ("X_data")]
     )
 
-    logger = get_logger()
+    # logger = get_logger()
 
     logger.info("Initializing create_model()")
     logger.info(f"create_model({function_params_str})")
@@ -2953,7 +2953,7 @@ def create_model_supervised(
         ]
     )
 
-    logger = get_logger()
+    # logger = get_logger()
 
     logger.info("Initializing create_model()")
     logger.info(f"create_model({function_params_str})")
@@ -3095,7 +3095,7 @@ def create_model_supervised(
             regressor=model, power_transformer_method=transform_target_method_param
         )
 
-    logger.info(f"{full_name} Imported succesfully")
+    logger.info(f"{full_name} Imported successfully")
 
     display.move_progress()
 
