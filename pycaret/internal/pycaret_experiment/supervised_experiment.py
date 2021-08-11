@@ -48,7 +48,6 @@ from unittest.mock import patch
 import plotly.express as px  # type: ignore
 import plotly.graph_objects as go  # type: ignore
 
-
 warnings.filterwarnings("ignore")
 LOGGER = get_logger()
 
@@ -76,7 +75,7 @@ class _SupervisedExperiment(_TabularExperiment):
         return
 
     def _calculate_metrics(
-        self, y_test, pred, pred_prob, weights: Optional[list] = None,
+            self, y_test, pred, pred_prob, weights: Optional[list] = None,
     ) -> dict:
         """
         Calculate all metrics in _all_metrics.
@@ -113,13 +112,13 @@ class _SupervisedExperiment(_TabularExperiment):
         return False
 
     def _choose_better(
-        self,
-        models_and_results: list,
-        compare_dimension: str,
-        fold: int,
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        display: Optional[Display] = None,
+            self,
+            models_and_results: list,
+            compare_dimension: str,
+            fold: int,
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            display: Optional[Display] = None,
     ):
         """
         When choose_better is set to True, optimize metric in scoregrid is
@@ -187,7 +186,7 @@ class _SupervisedExperiment(_TabularExperiment):
         )
 
     def _set_up_mlflow(
-        self, functions, runtime, log_profile, profile_kwargs, log_data, display,
+            self, functions, runtime, log_profile, profile_kwargs, log_data, display,
     ) -> None:
         functions_styler = functions
         if isinstance(functions, Styler):
@@ -274,25 +273,25 @@ class _SupervisedExperiment(_TabularExperiment):
                     os.remove("Test.csv")
 
     def compare_models(
-        self,
-        include: Optional[
-            List[Union[str, Any]]
-        ] = None,  # changed whitelist to include in pycaret==2.1
-        exclude: Optional[
-            List[str]
-        ] = None,  # changed blacklist to exclude in pycaret==2.1
-        fold: Optional[Union[int, Any]] = None,
-        round: int = 4,
-        cross_validation: bool = True,
-        sort: str = "Accuracy",
-        n_select: int = 1,
-        budget_time: Optional[float] = None,  # added in pycaret==2.1.0
-        turbo: bool = True,
-        errors: str = "ignore",
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        verbose: bool = True,
-        display: Optional[Display] = None,
+            self,
+            include: Optional[
+                List[Union[str, Any]]
+            ] = None,  # changed whitelist to include in pycaret==2.1
+            exclude: Optional[
+                List[str]
+            ] = None,  # changed blacklist to exclude in pycaret==2.1
+            fold: Optional[Union[int, Any]] = None,
+            round: int = 4,
+            cross_validation: bool = True,
+            sort: str = "Accuracy",
+            n_select: int = 1,
+            budget_time: Optional[float] = None,  # added in pycaret==2.1.0
+            turbo: bool = True,
+            errors: str = "ignore",
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            verbose: bool = True,
+            display: Optional[Display] = None,
     ) -> List[Any]:
 
         """
@@ -448,7 +447,7 @@ class _SupervisedExperiment(_TabularExperiment):
 
         # checking fold parameter
         if fold is not None and not (
-            type(fold) is int or is_sklearn_cv_generator(fold)
+                type(fold) is int or is_sklearn_cv_generator(fold)
         ):
             raise TypeError(
                 "fold parameter must be either None, an integer or a scikit-learn compatible CV generator object."
@@ -460,9 +459,9 @@ class _SupervisedExperiment(_TabularExperiment):
 
         # checking budget_time parameter
         if (
-            budget_time
-            and type(budget_time) is not int
-            and type(budget_time) is not float
+                budget_time
+                and type(budget_time) is not int
+                and type(budget_time) is not float
         ):
             raise TypeError(
                 "budget_time parameter only accepts integer or float values."
@@ -520,9 +519,9 @@ class _SupervisedExperiment(_TabularExperiment):
         if not display:
             progress_args = {"max": (4 * len_mod) + 4 + len_mod}
             master_display_columns = (
-                ["Model"]
-                + [v.display_name for k, v in self._all_metrics.items()]
-                + ["TT (Sec)"]
+                    ["Model"]
+                    + [v.display_name for k, v in self._all_metrics.items()]
+                    + ["TT (Sec)"]
             )
             timestampStr = datetime.datetime.now().strftime("%H:%M:%S")
             monitor_rows = [
@@ -622,8 +621,8 @@ class _SupervisedExperiment(_TabularExperiment):
             model_id = (
                 model
                 if (
-                    isinstance(model, str)
-                    and all(isinstance(m, str) for m in model_library)
+                        isinstance(model, str)
+                        and all(isinstance(m, str) for m in model_library)
                 )
                 else str(i)
             )
@@ -639,7 +638,7 @@ class _SupervisedExperiment(_TabularExperiment):
             total_runtime += (runtime_start - total_runtime_start) / 60
             self.logger.info(f"Total runtime is {total_runtime} minutes")
             over_time_budget = (
-                budget_time and budget_time > 0 and total_runtime > budget_time
+                    budget_time and budget_time > 0 and total_runtime > budget_time
             )
             if over_time_budget:
                 self.logger.info(
@@ -799,7 +798,7 @@ class _SupervisedExperiment(_TabularExperiment):
                         if x not in greater_is_worse_columns
                     ],
                 )
-                .apply(
+                    .apply(
                     highlight_min,
                     subset=[
                         x
@@ -807,7 +806,7 @@ class _SupervisedExperiment(_TabularExperiment):
                         if x in greater_is_worse_columns
                     ],
                 )
-                .applymap(highlight_cols, subset=["TT (Sec)"])
+                    .applymap(highlight_cols, subset=["TT (Sec)"])
             )
         else:
             compare_models_ = pd.DataFrame().style
@@ -899,7 +898,7 @@ class _SupervisedExperiment(_TabularExperiment):
         return sorted_models
 
     def _create_model_without_cv(
-        self, model, data_X, data_y, fit_kwargs, predict, system, display
+            self, model, data_X, data_y, fit_kwargs, predict, system, display
     ):
         with estimator_pipeline(self._internal_pipeline, model) as pipeline_with_model:
             fit_kwargs = get_pipeline_fit_kwargs(pipeline_with_model, fit_kwargs)
@@ -930,18 +929,18 @@ class _SupervisedExperiment(_TabularExperiment):
         return model, model_fit_time
 
     def _create_model_with_cv(
-        self,
-        model,
-        data_X,
-        data_y,
-        fit_kwargs,
-        round,
-        cv,
-        groups,
-        metrics,
-        refit,
-        system,
-        display,
+            self,
+            model,
+            data_X,
+            data_y,
+            fit_kwargs,
+            round,
+            cv,
+            groups,
+            metrics,
+            refit,
+            system,
+            display,
     ):
         """
         MONITOR UPDATE STARTS
@@ -1005,7 +1004,7 @@ class _SupervisedExperiment(_TabularExperiment):
             self.logger.info("Creating metrics dataframe")
 
             model_results = pd.DataFrame(score_dict)
-            model_avgs = pd.DataFrame(avgs_dict, index=["Mean", "SD"],)
+            model_avgs = pd.DataFrame(avgs_dict, index=["Mean", "SD"], )
 
             model_results = model_results.append(model_avgs)
             model_results = model_results.round(round)
@@ -1033,22 +1032,22 @@ class _SupervisedExperiment(_TabularExperiment):
         return model, model_fit_time, model_results, avgs_dict
 
     def create_model(
-        self,
-        estimator,
-        fold: Optional[Union[int, Any]] = None,
-        round: int = 4,
-        cross_validation: bool = True,
-        predict: bool = True,
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        refit: bool = True,
-        verbose: bool = True,
-        system: bool = True,
-        X_train_data: Optional[pd.DataFrame] = None,  # added in pycaret==2.2.0
-        y_train_data: Optional[pd.DataFrame] = None,  # added in pycaret==2.2.0
-        metrics=None,
-        display: Optional[Display] = None,  # added in pycaret==2.2.0
-        **kwargs,
+            self,
+            estimator,
+            fold: Optional[Union[int, Any]] = None,
+            round: int = 4,
+            cross_validation: bool = True,
+            predict: bool = True,
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            refit: bool = True,
+            verbose: bool = True,
+            system: bool = True,
+            X_train_data: Optional[pd.DataFrame] = None,  # added in pycaret==2.2.0
+            y_train_data: Optional[pd.DataFrame] = None,  # added in pycaret==2.2.0
+            metrics=None,
+            display: Optional[Display] = None,  # added in pycaret==2.2.0
+            **kwargs,
     ) -> Any:
 
         """
@@ -1204,7 +1203,7 @@ class _SupervisedExperiment(_TabularExperiment):
 
         # checking fold parameter
         if fold is not None and not (
-            type(fold) is int or is_sklearn_cv_generator(fold)
+                type(fold) is int or is_sklearn_cv_generator(fold)
         ):
             raise TypeError(
                 "fold parameter must be either None, an integer or a scikit-learn compatible CV generator object."
@@ -1351,7 +1350,7 @@ class _SupervisedExperiment(_TabularExperiment):
         display.display_monitor()
 
         if self.transform_target_param and not isinstance(
-            model, TransformedTargetRegressor
+                model, TransformedTargetRegressor
         ):
             model = PowerTransformedTargetRegressor(
                 regressor=model,
@@ -1376,7 +1375,6 @@ class _SupervisedExperiment(_TabularExperiment):
         """
 
         if not cross_validation:
-
             model, model_fit_time = self._create_model_without_cv(
                 model, data_X, data_y, fit_kwargs, predict, system, display
             )
@@ -1394,105 +1392,106 @@ class _SupervisedExperiment(_TabularExperiment):
                 return model, model_fit_time
             return model
 
-        model, model_fit_time, model_results, avgs_dict = self._create_model_with_cv(
-            model,
-            data_X,
-            data_y,
-            fit_kwargs,
-            round,
-            cv,
-            groups,
-            metrics,
-            refit,
-            system,
-            display,
-        )
+        else:  # with cv
+            model, model_fit_time, model_results, avgs_dict = self._create_model_with_cv(
+                model,
+                data_X,
+                data_y,
+                fit_kwargs,
+                round,
+                cv,
+                groups,
+                metrics,
+                refit,
+                system,
+                display,
+            )
 
-        # end runtime
-        runtime_end = time.time()
-        runtime = np.array(runtime_end - runtime_start).round(2)
+            # end runtime
+            runtime_end = time.time()
+            runtime = np.array(runtime_end - runtime_start).round(2)
 
-        # mlflow logging
-        if self.logging_param and system and refit:
+            # mlflow logging
+            if self.logging_param and system and refit:
 
-            avgs_dict_log = avgs_dict.copy()
-            avgs_dict_log = {k: v[0] for k, v in avgs_dict_log.items()}
+                avgs_dict_log = avgs_dict.copy()
+                avgs_dict_log = {k: v[0] for k, v in avgs_dict_log.items()}
 
-            try:
-                self._mlflow_log_model(
-                    model=model,
-                    model_results=model_results,
-                    score_dict=avgs_dict_log,
-                    source="create_model",
-                    runtime=runtime,
-                    model_fit_time=model_fit_time,
-                    _prep_pipe=self.prep_pipe,
-                    log_plots=self.log_plots_param,
-                    display=display,
-                )
-            except:
-                self.logger.error(
-                    f"_mlflow_log_model() for {model} raised an exception:"
-                )
-                self.logger.error(traceback.format_exc())
+                try:
+                    self._mlflow_log_model(
+                        model=model,
+                        model_results=model_results,
+                        score_dict=avgs_dict_log,
+                        source="create_model",
+                        runtime=runtime,
+                        model_fit_time=model_fit_time,
+                        _prep_pipe=self.prep_pipe,
+                        log_plots=self.log_plots_param,
+                        display=display,
+                    )
+                except:
+                    self.logger.error(
+                        f"_mlflow_log_model() for {model} raised an exception:"
+                    )
+                    self.logger.error(traceback.format_exc())
 
-        display.move_progress()
+            display.move_progress()
 
-        self.logger.info("Uploading results into container")
+            self.logger.info("Uploading results into container")
 
-        if (
-            getattr(display, "master_display", None) is not None
-            and "cutoff" not in display.master_display.columns
-        ):
-            model_results.data.drop("cutoff", axis=1, inplace=True, errors="ignore")
+            if (
+                    getattr(display, "master_display", None) is not None
+                    and "cutoff" not in display.master_display.columns
+            ):
+                model_results.data.drop("cutoff", axis=1, inplace=True, errors="ignore")
 
-        self.display_container.append(model_results.data)
+            self.display_container.append(model_results.data)
 
-        # storing results in master_model_container
-        self.logger.info("Uploading model into container now")
-        self.master_model_container.append(
-            {"model": model, "scores": model_results.data, "cv": cv}
-        )
+            # storing results in master_model_container
+            self.logger.info("Uploading model into container now")
+            self.master_model_container.append(
+                {"model": model, "scores": model_results.data, "cv": cv}
+            )
 
-        display.display(
-            model_results, clear=system, override=False if not system else None
-        )
+            display.display(
+                model_results, clear=system, override=False if not system else None
+            )
 
-        self.logger.info(f"master_model_container: {len(self.master_model_container)}")
-        self.logger.info(f"display_container: {len(self.display_container)}")
+            self.logger.info(f"master_model_container: {len(self.master_model_container)}")
+            self.logger.info(f"display_container: {len(self.display_container)}")
 
-        self.logger.info(str(model))
-        self.logger.info(
-            "create_model() successfully completed......................................"
-        )
-        gc.collect()
+            self.logger.info(str(model))
+            self.logger.info(
+                "create_model() successfully completed......................................"
+            )
+            gc.collect()
 
-        if not system:
-            return (model, model_fit_time)
+            if not system:
+                return (model, model_fit_time)
 
-        return model
+            return model
 
     def tune_model(
-        self,
-        estimator,
-        fold: Optional[Union[int, Any]] = None,
-        round: int = 4,
-        n_iter: int = 10,
-        custom_grid: Optional[Union[Dict[str, list], Any]] = None,
-        optimize: str = "Accuracy",
-        custom_scorer=None,  # added in pycaret==2.1 - depreciated
-        search_library: str = "scikit-learn",
-        search_algorithm: Optional[str] = None,
-        early_stopping: Any = False,
-        early_stopping_max_iters: int = 10,
-        choose_better: bool = False,
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        return_tuner: bool = False,
-        verbose: bool = True,
-        tuner_verbose: Union[int, bool] = True,
-        display: Optional[Display] = None,
-        **kwargs,
+            self,
+            estimator,
+            fold: Optional[Union[int, Any]] = None,
+            round: int = 4,
+            n_iter: int = 10,
+            custom_grid: Optional[Union[Dict[str, list], Any]] = None,
+            optimize: str = "Accuracy",
+            custom_scorer=None,  # added in pycaret==2.1 - depreciated
+            search_library: str = "scikit-learn",
+            search_algorithm: Optional[str] = None,
+            early_stopping: Any = False,
+            early_stopping_max_iters: int = 10,
+            choose_better: bool = False,
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            return_tuner: bool = False,
+            verbose: bool = True,
+            tuner_verbose: Union[int, bool] = True,
+            display: Optional[Display] = None,
+            **kwargs,
     ) -> Any:
 
         """
@@ -1685,7 +1684,7 @@ class _SupervisedExperiment(_TabularExperiment):
 
         # checking fold parameter
         if fold is not None and not (
-            type(fold) is int or is_sklearn_cv_generator(fold)
+                type(fold) is int or is_sklearn_cv_generator(fold)
         ):
             raise TypeError(
                 "fold parameter must be either None, an integer or a scikit-learn compatible CV generator object."
@@ -1702,8 +1701,8 @@ class _SupervisedExperiment(_TabularExperiment):
         # checking early_stopping parameter
         possible_early_stopping = ["asha", "Hyperband", "Median"]
         if (
-            isinstance(early_stopping, str)
-            and early_stopping not in possible_early_stopping
+                isinstance(early_stopping, str)
+                and early_stopping not in possible_early_stopping
         ):
             raise TypeError(
                 f"early_stopping parameter must be one of {', '.join(possible_early_stopping)}"
@@ -1865,11 +1864,9 @@ class _SupervisedExperiment(_TabularExperiment):
                 "return_tuner parameter can only take argument as True or False."
             )
 
-        if not verbose:
-            tuner_verbose = 0
+        if not verbose: tuner_verbose = 0
 
-        if type(tuner_verbose) not in (bool, int):
-            raise TypeError("tuner_verbose parameter must be a bool or an int.")
+        if type(tuner_verbose) not in (bool, int): raise TypeError("tuner_verbose parameter must be a bool or an int.")
 
         tuner_verbose = int(tuner_verbose)
 
@@ -2022,11 +2019,11 @@ class _SupervisedExperiment(_TabularExperiment):
                 raise TypeError(f"custom_grid must be a dict, got {type(custom_grid)}.")
             param_grid = custom_grid
             if not (
-                search_library == "scikit-learn"
-                or (
-                    search_library == "tune-sklearn"
-                    and (search_algorithm == "grid" or search_algorithm == "random")
-                )
+                    search_library == "scikit-learn"
+                    or (
+                            search_library == "tune-sklearn"
+                            and (search_algorithm == "grid" or search_algorithm == "random")
+                    )
             ):
                 param_grid = {
                     k: CategoricalDistribution(v) if isinstance(v, Iterable) else v
@@ -2037,8 +2034,8 @@ class _SupervisedExperiment(_TabularExperiment):
                     f"For the combination of search_library {search_library} and search_algorithm {search_algorithm}, PyCaret Distribution objects are not supported. Pass a list or other object supported by the search library (in most cases, an object with a 'rvs' function)."
                 )
         elif search_library == "scikit-learn" or (
-            search_library == "tune-sklearn"
-            and (search_algorithm == "grid" or search_algorithm == "random")
+                search_library == "tune-sklearn"
+                and (search_algorithm == "grid" or search_algorithm == "random")
         ):
             param_grid = estimator_definition.tune_grid
             if isinstance(base_estimator, (VotingClassifier, VotingRegressor)):
@@ -2156,7 +2153,7 @@ class _SupervisedExperiment(_TabularExperiment):
                     param_distributions=param_grid,
                     cv=fold,
                     enable_pruning=early_stopping
-                    and can_early_stop(
+                                   and can_early_stop(
                         pipeline_with_model, True, False, False, param_grid
                     ),
                     max_iter=early_stopping_max_iters,
@@ -2191,7 +2188,7 @@ class _SupervisedExperiment(_TabularExperiment):
                     )
 
                 elif early_stopping and can_early_stop(
-                    pipeline_with_model, False, True, False, param_grid
+                        pipeline_with_model, False, True, False, param_grid
                 ):
                     if "actual_estimator__n_estimators" in param_grid:
                         if custom_grid is None:
@@ -2216,7 +2213,7 @@ class _SupervisedExperiment(_TabularExperiment):
                 from tune_sklearn import TuneSearchCV, TuneGridSearchCV
 
                 with true_warm_start(
-                    pipeline_with_model
+                        pipeline_with_model
                 ) if do_early_stop else nullcontext():
                     if search_algorithm == "grid":
 
@@ -2348,12 +2345,12 @@ class _SupervisedExperiment(_TabularExperiment):
             if search_library == "scikit-learn":
                 # monkey patching to fix overflows on Windows
                 with patch(
-                    "sklearn.model_selection._search.sample_without_replacement",
-                    pycaret.internal.patches.sklearn._mp_sample_without_replacement,
+                        "sklearn.model_selection._search.sample_without_replacement",
+                        pycaret.internal.patches.sklearn._mp_sample_without_replacement,
                 ):
                     with patch(
-                        "sklearn.model_selection._search.ParameterGrid.__getitem__",
-                        pycaret.internal.patches.sklearn._mp_ParameterGrid_getitem,
+                            "sklearn.model_selection._search.ParameterGrid.__getitem__",
+                            pycaret.internal.patches.sklearn._mp_ParameterGrid_getitem,
                     ):
                         model_grid.fit(data_X, data_y, groups=groups, **fit_kwargs)
             else:
@@ -2462,18 +2459,18 @@ class _SupervisedExperiment(_TabularExperiment):
         return best_model
 
     def ensemble_model(
-        self,
-        estimator,
-        method: str = "Bagging",
-        fold: Optional[Union[int, Any]] = None,
-        n_estimators: int = 10,
-        round: int = 4,
-        choose_better: bool = False,
-        optimize: str = "Accuracy",
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        verbose: bool = True,
-        display: Optional[Display] = None,  # added in pycaret==2.2.0
+            self,
+            estimator,
+            method: str = "Bagging",
+            fold: Optional[Union[int, Any]] = None,
+            n_estimators: int = 10,
+            round: int = 4,
+            choose_better: bool = False,
+            optimize: str = "Accuracy",
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            verbose: bool = True,
+            display: Optional[Display] = None,  # added in pycaret==2.2.0
     ) -> Any:
         """
         This function ensembles the trained base estimator using the method defined in
@@ -2610,7 +2607,7 @@ class _SupervisedExperiment(_TabularExperiment):
 
         # checking fold parameter
         if fold is not None and not (
-            type(fold) is int or is_sklearn_cv_generator(fold)
+                type(fold) is int or is_sklearn_cv_generator(fold)
         ):
             raise TypeError(
                 "fold parameter must be either None, an integer or a scikit-learn compatible CV generator object."
@@ -2824,18 +2821,18 @@ class _SupervisedExperiment(_TabularExperiment):
         return model
 
     def blend_models(
-        self,
-        estimator_list: list,
-        fold: Optional[Union[int, Any]] = None,
-        round: int = 4,
-        choose_better: bool = False,
-        optimize: str = "Accuracy",
-        method: str = "auto",
-        weights: Optional[List[float]] = None,  # added in pycaret==2.2.0
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        verbose: bool = True,
-        display: Optional[Display] = None,  # added in pycaret==2.2.0
+            self,
+            estimator_list: list,
+            fold: Optional[Union[int, Any]] = None,
+            round: int = 4,
+            choose_better: bool = False,
+            optimize: str = "Accuracy",
+            method: str = "auto",
+            weights: Optional[List[float]] = None,  # added in pycaret==2.2.0
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            verbose: bool = True,
+            display: Optional[Display] = None,  # added in pycaret==2.2.0
     ) -> Any:
 
         """
@@ -2980,7 +2977,7 @@ class _SupervisedExperiment(_TabularExperiment):
 
         # checking fold parameter
         if fold is not None and not (
-            type(fold) is int or is_sklearn_cv_generator(fold)
+                type(fold) is int or is_sklearn_cv_generator(fold)
         ):
             raise TypeError(
                 "fold parameter must be either None, an integer or a scikit-learn compatible CV generator object."
@@ -3200,19 +3197,19 @@ class _SupervisedExperiment(_TabularExperiment):
         return model
 
     def stack_models(
-        self,
-        estimator_list: list,
-        meta_model=None,
-        fold: Optional[Union[int, Any]] = None,
-        round: int = 4,
-        method: str = "auto",
-        restack: bool = False,
-        choose_better: bool = False,
-        optimize: str = "Accuracy",
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        verbose: bool = True,
-        display: Optional[Display] = None,
+            self,
+            estimator_list: list,
+            meta_model=None,
+            fold: Optional[Union[int, Any]] = None,
+            round: int = 4,
+            method: str = "auto",
+            restack: bool = False,
+            choose_better: bool = False,
+            optimize: str = "Accuracy",
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            verbose: bool = True,
+            display: Optional[Display] = None,
     ) -> Any:
 
         """
@@ -3340,7 +3337,7 @@ class _SupervisedExperiment(_TabularExperiment):
 
         # checking fold parameter
         if fold is not None and not (
-            type(fold) is int or is_sklearn_cv_generator(fold)
+                type(fold) is int or is_sklearn_cv_generator(fold)
         ):
             raise TypeError(
                 "fold parameter must be either None, an integer or a scikit-learn compatible CV generator object."
@@ -3563,15 +3560,15 @@ class _SupervisedExperiment(_TabularExperiment):
         return model
 
     def interpret_model(
-        self,
-        estimator,
-        plot: str = "summary",
-        feature: Optional[str] = None,
-        observation: Optional[int] = None,
-        use_train_data: bool = False,
-        X_new_sample: Optional[pd.DataFrame] = None,
-        save: bool = False,
-        **kwargs,  # added in pycaret==2.1
+            self,
+            estimator,
+            plot: str = "summary",
+            feature: Optional[str] = None,
+            observation: Optional[int] = None,
+            use_train_data: bool = False,
+            X_new_sample: Optional[pd.DataFrame] = None,
+            save: bool = False,
+            **kwargs,  # added in pycaret==2.1
     ):
 
         """
@@ -3682,7 +3679,7 @@ class _SupervisedExperiment(_TabularExperiment):
         shap_models_ids = set(shap_models.keys())
 
         if plot in ["summary", "correlation", "reason"] and (
-            model_id not in shap_models_ids
+                model_id not in shap_models_ids
         ):
             raise TypeError(
                 f"This function only supports tree based models for binary classification: {', '.join(shap_models_ids)}."
@@ -3915,10 +3912,10 @@ class _SupervisedExperiment(_TabularExperiment):
         return shap_plot
 
     def models(
-        self,
-        type: Optional[str] = None,
-        internal: bool = False,
-        raise_errors: bool = True,
+            self,
+            type: Optional[str] = None,
+            internal: bool = False,
+            raise_errors: bool = True,
     ) -> pd.DataFrame:
 
         """
@@ -4009,10 +4006,10 @@ class _SupervisedExperiment(_TabularExperiment):
         return filter_model_df_by_type(df)
 
     def get_metrics(
-        self,
-        reset: bool = False,
-        include_custom: bool = True,
-        raise_errors: bool = True,
+            self,
+            reset: bool = False,
+            include_custom: bool = True,
+            raise_errors: bool = True,
     ) -> pd.DataFrame:
         """
         Returns table of metrics available.
@@ -4060,14 +4057,14 @@ class _SupervisedExperiment(_TabularExperiment):
         return df
 
     def add_metric(
-        self,
-        id: str,
-        name: str,
-        score_func: type,
-        target: str = "pred",
-        greater_is_better: bool = True,
-        multiclass: bool = True,
-        **kwargs,
+            self,
+            id: str,
+            name: str,
+            score_func: type,
+            target: str = "pred",
+            greater_is_better: bool = True,
+            multiclass: bool = True,
+            **kwargs,
     ) -> pd.Series:
         """
         Adds a custom metric to be used in all functions.
@@ -4177,12 +4174,12 @@ class _SupervisedExperiment(_TabularExperiment):
         )
 
     def finalize_model(
-        self,
-        estimator,
-        fit_kwargs: Optional[dict] = None,
-        groups: Optional[Union[str, Any]] = None,
-        model_only: bool = True,
-        display: Optional[Display] = None,
+            self,
+            estimator,
+            fit_kwargs: Optional[dict] = None,
+            groups: Optional[Union[str, Any]] = None,
+            model_only: bool = True,
+            display: Optional[Display] = None,
     ) -> Any:  # added in pycaret==2.2.0
 
         """
@@ -4250,7 +4247,7 @@ class _SupervisedExperiment(_TabularExperiment):
         )
 
         if not display:
-            display = Display(verbose=False, html_param=self.html_param,)
+            display = Display(verbose=False, html_param=self.html_param, )
 
         np.random.seed(self.seed)
 
@@ -4315,16 +4312,16 @@ class _SupervisedExperiment(_TabularExperiment):
         return model_final
 
     def predict_model(
-        self,
-        estimator,
-        data: Optional[pd.DataFrame] = None,
-        probability_threshold: Optional[float] = None,
-        encoded_labels: bool = False,  # added in pycaret==2.1.0
-        raw_score: bool = False,
-        round: int = 4,  # added in pycaret==2.2.0
-        verbose: bool = True,
-        ml_usecase: Optional[MLUsecase] = None,
-        display: Optional[Display] = None,  # added in pycaret==2.2.0
+            self,
+            estimator,
+            data: Optional[pd.DataFrame] = None,
+            probability_threshold: Optional[float] = None,
+            encoded_labels: bool = False,  # added in pycaret==2.1.0
+            raw_score: bool = False,
+            round: int = 4,  # added in pycaret==2.2.0
+            verbose: bool = True,
+            ml_usecase: Optional[MLUsecase] = None,
+            display: Optional[Display] = None,  # added in pycaret==2.2.0
     ) -> pd.DataFrame:
 
         """
@@ -4438,9 +4435,9 @@ class _SupervisedExperiment(_TabularExperiment):
         try:
             np.random.seed(self.seed)
             if not display:
-                display = Display(verbose=verbose, html_param=self.html_param,)
+                display = Display(verbose=verbose, html_param=self.html_param, )
         except:
-            display = Display(verbose=False, html_param=False,)
+            display = Display(verbose=False, html_param=False, )
 
         dtypes = None
 

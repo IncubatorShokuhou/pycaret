@@ -25,8 +25,9 @@ class _PyCaretExperiment:
         self._setup_ran = False
         self.display_container = []
         self.exp_id = None
-        self.gpu_param = False
+        # self.gpu_param = False
         self.n_jobs_param = -1
+        self._gpu_n_jobs_param = 0
         self.logger = LOGGER
 
         # Data attrs
@@ -34,9 +35,9 @@ class _PyCaretExperiment:
         self.target_param = None
         self.idx = [0, 0]  # Train and test sizes
 
-    @property
-    def _gpu_n_jobs_param(self) -> int:
-        return self.n_jobs_param if not self.gpu_param else 1
+    # @property
+    # def _gpu_n_jobs_param(self) -> int:
+    #     return self.n_jobs_param if not self.gpu_param else 1
 
     @property
     def variables(self) -> dict:
@@ -50,7 +51,7 @@ class _PyCaretExperiment:
         """
         return False
 
-    def _check_enviroment(self) -> None:
+    def _check_environment(self) -> None:
         # logging environment and libraries
         self.logger.info("Checking environment")
 

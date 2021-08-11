@@ -102,7 +102,6 @@ class _TabularExperiment(_PyCaretExperiment):
                 "iterative_imputation_iters_param",
             }
         )
-        return
 
     def _get_setup_display(self, **kwargs) -> Styler:
         return pd.DataFrame().style
@@ -520,7 +519,7 @@ class _TabularExperiment(_PyCaretExperiment):
 
         self.logger.info(f"self.variable_keys: {self.variable_keys}")
 
-        self._check_enviroment()
+        self._check_environment()
 
         # Checking parameters ====================================== >>
 
