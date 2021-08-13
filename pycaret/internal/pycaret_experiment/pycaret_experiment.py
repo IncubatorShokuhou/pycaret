@@ -27,7 +27,9 @@ class _PyCaretExperiment:
         self.exp_id = None
         # self.gpu_param = False
         self.n_jobs_param = -1
-        self._gpu_n_jobs_param = 0
+        self.gpu_n_jobs_param = 0  # not internal. so remove "_"
+        self.if_force_gpu = False # to replace gpu_param="force" TODO: rename?
+        self.use_distribution = False # TODO: rename?
         self.logger = LOGGER
 
         # Data attrs
@@ -35,6 +37,7 @@ class _PyCaretExperiment:
         self.target_param = None
         self.idx = [0, 0]  # Train and test sizes
 
+    # deleted
     # @property
     # def _gpu_n_jobs_param(self) -> int:
     #     return self.n_jobs_param if not self.gpu_param else 1

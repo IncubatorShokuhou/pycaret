@@ -84,7 +84,9 @@ class _TabularExperiment(_PyCaretExperiment):
                 "prep_pipe",
                 "experiment__",
                 "n_jobs_param",
-                "_gpu_n_jobs_param",
+                "gpu_n_jobs_param", # new
+                "if_force_gpu"      # new
+                "use_distribution"  # new
                 "master_model_container",
                 "display_container",
                 "exp_name_log",
@@ -92,7 +94,7 @@ class _TabularExperiment(_PyCaretExperiment):
                 "logging_param",
                 "log_plots_param",
                 "data",
-                "gpu_param",
+                # "gpu_param",      # delete
                 "_all_models",
                 "_all_models_internal",
                 "_all_metrics",
@@ -473,7 +475,7 @@ class _TabularExperiment(_PyCaretExperiment):
         self.transform_target_param = transform_target
         self.transform_target_method_param = transform_target_method
         self.n_jobs_param = n_jobs
-        self.gpu_param = use_gpu
+        # self.gpu_param = use_gpu
         self.fold_param = fold
         self.fold_groups_param = None
         self.html_param = html
@@ -1292,33 +1294,33 @@ class _TabularExperiment(_PyCaretExperiment):
 
         # Set up GPU usage ========================================= >>
 
-        if self.gpu_param != "force" and type(self.gpu_param) is not bool:
-            raise TypeError(
-                f"Invalid value for the use_gpu parameter, got {self.gpu_param}. "
-                "Possible values are: 'force', True or False."
-            )
+        # if self.gpu_param != "force" and type(self.gpu_param) is not bool:
+        #     raise TypeError(
+        #         f"Invalid value for the use_gpu parameter, got {self.gpu_param}. "
+        #         "Possible values are: 'force', True or False."
+        #     )
 
-        cuml_version = None
-        if self.gpu_param:
-            self.logger.info("Set up GPU usage.")
-
-            try:
-                from cuml import __version__
-
-                cuml_version = __version__
-                self.logger.info(f"cuml=={cuml_version}")
-
-                cuml_version = cuml_version.split(".")
-                cuml_version = (int(cuml_version[0]), int(cuml_version[1]))
-            except Exception:
-                self.logger.warning("cuML not found")
-
-            if cuml_version is None or not cuml_version >= (0, 15):
-                message = f"cuML is outdated or not found. Required version is >=0.15, got {__version__}"
-                if use_gpu == "force":
-                    raise ImportError(message)
-                else:
-                    self.logger.warning(message)
+        # cuml_version = None
+        # if self.gpu_param:
+        #     self.logger.info("Set up GPU usage.")
+        #
+        #     try:
+        #         from cuml import __version__
+        #
+        #         cuml_version = __version__
+        #         self.logger.info(f"cuml=={cuml_version}")
+        #
+        #         cuml_version = cuml_version.split(".")
+        #         cuml_version = (int(cuml_version[0]), int(cuml_version[1]))
+        #     except Exception:
+        #         self.logger.warning("cuML not found")
+        #
+        #     if cuml_version is None or not cuml_version >= (0, 15):
+        #         message = f"cuML is outdated or not found. Required version is >=0.15, got {__version__}"
+        #         if use_gpu == "force":
+        #             raise ImportError(message)
+        #         else:
+        #             self.logger.warning(message)
 
         # Set up folding strategy ================================== >>
 
@@ -2562,7 +2564,7 @@ class _TabularExperiment(_PyCaretExperiment):
                             pipeline_with_model,
                             cv=cv,
                             train_sizes=sizes,
-                            n_jobs=self._gpu_n_jobs_param,
+                            n_jobs=self.n_jobs_param,
                             random_state=self.seed,
                         )
                         show_yellowbrick_plot(
@@ -2906,7 +2908,7 @@ class _TabularExperiment(_PyCaretExperiment):
                             # Catboost
                             if "depth" in model_params:
                                 param_name = f"{actual_estimator_label}__depth"
-                                param_range = np.arange(1, 8 if self.gpu_param else 11)
+                                param_range = np.arange(1, 8 if self.gpu_n_jobs_param else 11) # TODO: review it when writing cuml.dask
 
                             # SGD Classifier
                             elif f"{actual_estimator_label}__l1_ratio" in model_params:
@@ -2977,7 +2979,7 @@ class _TabularExperiment(_PyCaretExperiment):
                             # Catboost
                             if "depth" in model_params:
                                 param_name = f"{actual_estimator_label}__depth"
-                                param_range = np.arange(1, 8 if self.gpu_param else 11)
+                                param_range = np.arange(1, 8 if self.gpu_n_jobs_param else 11) # TODO: review it when writing cuml.dask
 
                             # lasso/ridge/en/llar/huber/kr/mlp/br/ard
                             elif f"{actual_estimator_label}__alpha" in model_params:
@@ -3066,7 +3068,7 @@ class _TabularExperiment(_PyCaretExperiment):
                             param_range=param_range,
                             cv=cv,
                             random_state=self.seed,
-                            n_jobs=self._gpu_n_jobs_param,
+                            n_jobs=self.n_jobs_param,
                         )
                         show_yellowbrick_plot(
                             visualizer=viz,
@@ -3490,7 +3492,7 @@ class _TabularExperiment(_PyCaretExperiment):
         internal: bool = False,
         raise_errors: bool = True,
     ) -> pd.DataFrame:
-
+        # TODO: review after containers/models all finished
         """
         Returns table of models available in model library.
 
@@ -3521,7 +3523,7 @@ class _TabularExperiment(_PyCaretExperiment):
 
         """
 
-        self.logger.info(f"gpu_param set to {self.gpu_param}")
+        # self.logger.info(f"gpu_param set to {self.gpu_param}")
 
         _, model_containers = self._get_models(raise_errors)
 

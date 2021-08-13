@@ -960,7 +960,8 @@ class _SupervisedExperiment(_TabularExperiment):
 
         self.logger.info("Starting cross validation")
 
-        n_jobs = self._gpu_n_jobs_param
+        n_jobs = self.n_jobs_param
+
         from sklearn.gaussian_process import (
             GaussianProcessClassifier,
             GaussianProcessRegressor,
@@ -2095,7 +2096,7 @@ class _SupervisedExperiment(_TabularExperiment):
             if estimator_definition is not None:
                 search_kwargs = {**estimator_definition.tune_args, **kwargs}
                 n_jobs = (
-                    self._gpu_n_jobs_param
+                    self.gpu_n_jobs_param
                     if estimator_definition.is_gpu_enabled
                     else self.n_jobs_param
                 )

@@ -1,8 +1,8 @@
-# Module: containers.models.anomaly
+# Module: containers.models.clustering
 # Author: Moez Ali <moez.ali@queensu.ca> and Antoni Baum (Yard1) <antoni.baum@protonmail.com>
 # License: MIT
 
-# The purpose of this module is to serve as a central repository of anomaly models. The `anomaly` module will
+# The purpose of this module is to serve as a central repository of clustering models. The `clustering` module will
 # call `get_all_model_containers()`, which will return instances of all classes in this module that have `ClassifierContainer`
 # as a base (but not `ClassifierContainer` itself). In order to add a new model, you only need to create a new class that has
 # `ClassifierContainer` as a base, set all of the required parameters in the `__init__` and then call `super().__init__`
@@ -26,12 +26,12 @@ from pycaret.internal.distributions import *
 import pycaret.containers.base_container
 import numpy as np
 
-_DEFAULT_N_ANOMALYS = 4
+_DEFAULT_N_CLUSTERS = 4
 
 
-class AnomalyContainer(ModelContainer):
+class ClusterContainer(ModelContainer):
     """
-    Base anomaly model container class, for easier definition of containers. Ensures consistent format
+    Base clustering model container class, for easier definition of containers. Ensures consistent format
     before being turned into a dataframe row.
 
     Parameters
@@ -95,8 +95,7 @@ class AnomalyContainer(ModelContainer):
         tune_grid: Dict[str, list] = None,
         tune_distribution: Dict[str, Distribution] = None,
         tune_args: Dict[str, Any] = None,
-        is_gpu_enabled: Optional[bool] = False, # false by default
-        is_distribution_enabled: Optional[bool] = False,
+        is_gpu_enabled: Optional[bool] = None,
     ) -> None:
 
         if not args:
@@ -122,8 +121,11 @@ class AnomalyContainer(ModelContainer):
         self.tune_grid = param_grid_to_lists(tune_grid)
         self.tune_distribution = tune_distribution
         self.tune_args = tune_args
-        self.is_gpu_enabled = is_gpu_enabled
-        self.is_distribution_enabled = is_distribution_enabled
+
+        if is_gpu_enabled is not None:
+            self.is_gpu_enabled = is_gpu_enabled
+        else:
+            self.is_gpu_enabled = bool(self.get_package_name() == "cuml")
 
     def get_dict(self, internal: bool = True) -> Dict[str, Any]:
         """
@@ -157,64 +159,62 @@ class AnomalyContainer(ModelContainer):
                 ("Tune Distributions", self.tune_distribution),
                 ("Tune Args", self.tune_args),
                 ("GPU Enabled", self.is_gpu_enabled),
-                ("Distribution Enabled", self.is_distribution_enabled)
             ]
 
         return dict(d)
 
 
-class ABODAnomalyContainer(AnomalyContainer):
+class KMeansClusterContainer(ClusterContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from pyod.models.abod import ABOD
+        gpu_imported = False
+        from sklearn.cluster import KMeans
 
-        args = {}
-        tune_args = {}
-        tune_grid = {}
-        tune_distributions = {}
+        if globals_dict["gpu_param"] == "force":
+            from cuml.cluster import KMeans
 
-        super().__init__(
-            id="abod",
-            name="Angle-base Outlier Detection",
-            class_def=ABOD,
-            args=args,
-            tune_grid=tune_grid,
-            tune_distribution=tune_distributions,
-            tune_args=tune_args,
-        )
+            logger.info("Imported cuml.cluster.KMeans")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.cluster import KMeans
 
-
-class CBLOFAnomalyContainer(AnomalyContainer):
-    def __init__(self, globals_dict: dict) -> None:
-        logger = get_logger()
-        np.random.seed(globals_dict["seed"])
-        from pyod.models.cblof import CBLOF
+                logger.info("Imported cuml.cluster.KMeans")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.cluster.KMeans")
 
         args = {
+            "n_clusters": _DEFAULT_N_CLUSTERS,
             "random_state": globals_dict["seed"],
-            "n_jobs": globals_dict["n_jobs_param"],
         }
         tune_args = {}
         tune_grid = {}
         tune_distributions = {}
 
+        if not gpu_imported:
+            args["n_jobs"] = globals_dict["n_jobs_param"]
+        else:
+            KMeans = get_kmeans()
+
         super().__init__(
-            id="cluster",
-            name="Clustering-Based Local Outlier",
-            class_def=CBLOF,
+            id="kmeans",
+            name="K-Means Clustering",
+            class_def=KMeans,
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
+            is_gpu_enabled=gpu_imported,
         )
 
 
-class COFAnomalyContainer(AnomalyContainer):
+class AffinityPropagationClusterContainer(ClusterContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from pyod.models.cof import COF
+        from sklearn.cluster import AffinityPropagation
 
         args = {}
         tune_args = {}
@@ -222,9 +222,9 @@ class COFAnomalyContainer(AnomalyContainer):
         tune_distributions = {}
 
         super().__init__(
-            id="cof",
-            name="Connectivity-Based Local Outlier",
-            class_def=COF,
+            id="ap",
+            name="Affinity Propagation",
+            class_def=AffinityPropagation,
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
@@ -232,59 +232,11 @@ class COFAnomalyContainer(AnomalyContainer):
         )
 
 
-class IForestAnomalyContainer(AnomalyContainer):
+class MeanShiftClusterContainer(ClusterContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from pyod.models.iforest import IForest
-
-        args = {
-            "behaviour": "new",
-            "random_state": globals_dict["seed"],
-            "n_jobs": globals_dict["n_jobs_param"],
-        }
-        tune_args = {}
-        tune_grid = {}
-        tune_distributions = {}
-
-        super().__init__(
-            id="iforest",
-            name="Isolation Forest",
-            class_def=IForest,
-            args=args,
-            tune_grid=tune_grid,
-            tune_distribution=tune_distributions,
-            tune_args=tune_args,
-        )
-
-
-class HBOSAnomalyContainer(AnomalyContainer):
-    def __init__(self, globals_dict: dict) -> None:
-        logger = get_logger()
-        np.random.seed(globals_dict["seed"])
-        from pyod.models.hbos import HBOS
-
-        args = {}
-        tune_args = {}
-        tune_grid = {}
-        tune_distributions = {}
-
-        super().__init__(
-            id="histogram",
-            name="Histogram-based Outlier Detection",
-            class_def=HBOS,
-            args=args,
-            tune_grid=tune_grid,
-            tune_distribution=tune_distributions,
-            tune_args=tune_args,
-        )
-
-
-class KNNAnomalyContainer(AnomalyContainer):
-    def __init__(self, globals_dict: dict) -> None:
-        logger = get_logger()
-        np.random.seed(globals_dict["seed"])
-        from pyod.models.knn import KNN
+        from sklearn.cluster import MeanShift
 
         args = {
             "n_jobs": globals_dict["n_jobs_param"],
@@ -294,9 +246,9 @@ class KNNAnomalyContainer(AnomalyContainer):
         tune_distributions = {}
 
         super().__init__(
-            id="knn",
-            name="K-Nearest Neighbors Detector",
-            class_def=KNN,
+            id="meanshift",
+            name="Mean Shift Clustering",
+            class_def=MeanShift,
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
@@ -304,13 +256,15 @@ class KNNAnomalyContainer(AnomalyContainer):
         )
 
 
-class LOFAnomalyContainer(AnomalyContainer):
+class SpectralClusteringClusterContainer(ClusterContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from pyod.models.lof import LOF
+        from sklearn.cluster import SpectralClustering
 
         args = {
+            "n_clusters": _DEFAULT_N_CLUSTERS,
+            "random_state": globals_dict["seed"],
             "n_jobs": globals_dict["n_jobs_param"],
         }
         tune_args = {}
@@ -318,9 +272,9 @@ class LOFAnomalyContainer(AnomalyContainer):
         tune_distributions = {}
 
         super().__init__(
-            id="lof",
-            name="Local Outlier Factor",
-            class_def=LOF,
+            id="sc",
+            name="Spectral Clustering",
+            class_def=SpectralClustering,
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
@@ -328,45 +282,23 @@ class LOFAnomalyContainer(AnomalyContainer):
         )
 
 
-class OCSVMAnomalyContainer(AnomalyContainer):
+class AgglomerativeClusteringClusterContainer(ClusterContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from pyod.models.ocsvm import OCSVM
-
-        args = {}
-        tune_args = {}
-        tune_grid = {}
-        tune_distributions = {}
-
-        super().__init__(
-            id="svm",
-            name="One-class SVM detector",
-            class_def=OCSVM,
-            args=args,
-            tune_grid=tune_grid,
-            tune_distribution=tune_distributions,
-            tune_args=tune_args,
-        )
-
-
-class PCAAnomalyContainer(AnomalyContainer):
-    def __init__(self, globals_dict: dict) -> None:
-        logger = get_logger()
-        np.random.seed(globals_dict["seed"])
-        from pyod.models.pca import PCA
+        from sklearn.cluster import AgglomerativeClustering
 
         args = {
-            "random_state": globals_dict["seed"],
+            "n_clusters": _DEFAULT_N_CLUSTERS,
         }
         tune_args = {}
         tune_grid = {}
         tune_distributions = {}
 
         super().__init__(
-            id="pca",
-            name="Principal Component Analysis",
-            class_def=PCA,
+            id="hclust",
+            name="Agglomerative Clustering",
+            class_def=AgglomerativeClustering,
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
@@ -374,67 +306,112 @@ class PCAAnomalyContainer(AnomalyContainer):
         )
 
 
-class MCDAnomalyContainer(AnomalyContainer):
+class DBSCANClusterContainer(ClusterContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from pyod.models.mcd import MCD
+        gpu_imported = False
+        from sklearn.cluster import DBSCAN
+
+        if globals_dict["gpu_param"] == "force":
+            from cuml.cluster import DBSCAN
+
+            logger.info("Imported cuml.cluster.DBSCAN")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.cluster import DBSCAN
+
+                logger.info("Imported cuml.cluster.DBSCAN")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.cluster.DBSCAN")
+
+        args = {}
+        tune_args = {}
+        tune_grid = {}
+        tune_distributions = {}
+
+        if not gpu_imported:
+            args["n_jobs"] = globals_dict["n_jobs_param"]
+        else:
+            DBSCAN = get_dbscan()
+
+        super().__init__(
+            id="dbscan",
+            name="Density-Based Spatial Clustering",
+            class_def=DBSCAN,
+            args=args,
+            tune_grid=tune_grid,
+            tune_distribution=tune_distributions,
+            tune_args=tune_args,
+            is_gpu_enabled=gpu_imported,
+        )
+
+
+class OPTICSClusterContainer(ClusterContainer):
+    def __init__(self, globals_dict: dict) -> None:
+        logger = get_logger()
+        np.random.seed(globals_dict["seed"])
+        from sklearn.cluster import OPTICS
+
+        args = {"n_jobs": globals_dict["n_jobs_param"]}
+        tune_args = {}
+        tune_grid = {}
+        tune_distributions = {}
+
+        super().__init__(
+            id="optics",
+            name="OPTICS Clustering",
+            class_def=OPTICS,
+            args=args,
+            tune_grid=tune_grid,
+            tune_distribution=tune_distributions,
+            tune_args=tune_args,
+        )
+
+
+class BirchClusterContainer(ClusterContainer):
+    def __init__(self, globals_dict: dict) -> None:
+        logger = get_logger()
+        np.random.seed(globals_dict["seed"])
+        from sklearn.cluster import Birch
+
+        args = {"n_clusters": _DEFAULT_N_CLUSTERS}
+        tune_args = {}
+        tune_grid = {}
+        tune_distributions = {}
+
+        super().__init__(
+            id="birch",
+            name="Birch Clustering",
+            class_def=Birch,
+            args=args,
+            tune_grid=tune_grid,
+            tune_distribution=tune_distributions,
+            tune_args=tune_args,
+        )
+
+
+class KModesClusterContainer(ClusterContainer):
+    def __init__(self, globals_dict: dict) -> None:
+        logger = get_logger()
+        np.random.seed(globals_dict["seed"])
+        from kmodes.kmodes import KModes
 
         args = {
+            "n_clusters": _DEFAULT_N_CLUSTERS,
             "random_state": globals_dict["seed"],
+            "n_jobs": globals_dict["n_jobs_param"],
         }
         tune_args = {}
         tune_grid = {}
         tune_distributions = {}
 
         super().__init__(
-            id="mcd",
-            name="Minimum Covariance Determinant",
-            class_def=MCD,
-            args=args,
-            tune_grid=tune_grid,
-            tune_distribution=tune_distributions,
-            tune_args=tune_args,
-        )
-
-
-class SODAnomalyContainer(AnomalyContainer):
-    def __init__(self, globals_dict: dict) -> None:
-        logger = get_logger()
-        np.random.seed(globals_dict["seed"])
-        from pyod.models.sod import SOD
-
-        args = {}
-        tune_args = {}
-        tune_grid = {}
-        tune_distributions = {}
-
-        super().__init__(
-            id="sod",
-            name="Subspace Outlier Detection",
-            class_def=SOD,
-            args=args,
-            tune_grid=tune_grid,
-            tune_distribution=tune_distributions,
-            tune_args=tune_args,
-        )
-
-
-class SOSAnomalyContainer(AnomalyContainer):
-    def __init__(self, globals_dict: dict) -> None:
-        logger = get_logger()
-        np.random.seed(globals_dict["seed"])
-        from pyod.models.sos import SOS
-
-        args = {}
-        tune_args = {}
-        tune_grid = {}
-        tune_distributions = {}
-
-        super().__init__(
-            id="sos",
-            name="Stochastic Outlier Selection",
-            class_def=SOS,
+            id="kmodes",
+            name="K-Modes Clustering",
+            class_def=KModes,
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
@@ -444,7 +421,7 @@ class SOSAnomalyContainer(AnomalyContainer):
 
 def get_all_model_containers(
     globals_dict: dict, raise_errors: bool = True
-) -> Dict[str, AnomalyContainer]:
+) -> Dict[str, ClusterContainer]:
     return pycaret.containers.base_container.get_all_containers(
-        globals(), globals_dict, AnomalyContainer, raise_errors
+        globals(), globals_dict, ClusterContainer, raise_errors
     )

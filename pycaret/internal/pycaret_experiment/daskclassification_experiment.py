@@ -1221,7 +1221,7 @@ class DaskClassificationExperiment(ClassificationExperiment):
         This function takes the input of trained estimator and performs probability
         calibration with sigmoid or isotonic regression. The output prints a score
         grid that shows Accuracy, AUC, Recall, Precision, F1, Kappa and MCC by fold
-        (default = 10 Fold). The ouput of the original estimator and the calibrated
+        (default = 10 Fold). The output of the original estimator and the calibrated
         estimator (created using this function) might not differ much. In order
         to see the calibration differences, use 'calibration' plot in plot_model to
         see the difference before and after.
@@ -1459,7 +1459,7 @@ class DaskClassificationExperiment(ClassificationExperiment):
 
         self.logger.info(str(model))
         self.logger.info(
-            "calibrate_model() succesfully completed......................................"
+            "calibrate_model() successfully completed......................................"
         )
 
         gc.collect()
@@ -1695,7 +1695,7 @@ class DaskClassificationExperiment(ClassificationExperiment):
             fig.show()
         print(f"Optimized Probability Threshold: {t} | Optimized Cost Function: {y1}")
         self.logger.info(
-            "optimize_threshold() succesfully completed......................................"
+            "optimize_threshold() successfully completed......................................"
         )
 
         return float(t)
