@@ -10,17 +10,14 @@
 
 import logging
 import pycaret.internal.cuml_wrappers
-from typing import Union, Dict, Any, Optional
-from pycaret.containers.models.base_model import (
+from typing import Any
+from pycaret.containers.models.deprecated.base_model import (
     ModelContainer,
-    leftover_parameters_to_categorical_distributions,
 )
 from pycaret.internal.cuml_wrappers import get_dbscan, get_kmeans
 from pycaret.internal.utils import (
     param_grid_to_lists,
     get_logger,
-    get_class_name,
-    np_list_arange,
 )
 from pycaret.internal.distributions import *
 import pycaret.containers.base_container

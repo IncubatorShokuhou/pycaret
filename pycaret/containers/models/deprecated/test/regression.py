@@ -10,7 +10,7 @@
 
 import logging
 from typing import Union, Any
-from pycaret.containers.base_model import (
+from pycaret.containers.models.deprecated.base_model import (
     ModelContainer,
     leftover_parameters_to_categorical_distributions,
 )
@@ -20,7 +20,7 @@ from pycaret.internal.utils import (
     np_list_arange,
 )
 from pycaret.internal.distributions import *
-import pycaret.containers.models.base_container
+import pycaret.containers.base_container
 import numpy as np
 from packaging import version
 
@@ -200,27 +200,27 @@ class LinearRegressionContainer(RegressorContainer):
 
         from sklearn.linear_model import LinearRegression
 
-        # if globals_dict["gpu_param"] == "force":
-        #     from cuml.linear_model import LinearRegression
-        #
-        #     logger.info("Imported cuml.linear_model.LinearRegression")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         from cuml.linear_model import LinearRegression
-        #
-        #         logger.info("Imported cuml.linear_model.LinearRegression")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.linear_model.LinearRegression")
+        if globals_dict["gpu_param"] == "force":
+            from cuml.linear_model import LinearRegression
+
+            logger.info("Imported cuml.linear_model.LinearRegression")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.linear_model import LinearRegression
+
+                logger.info("Imported cuml.linear_model.LinearRegression")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.linear_model.LinearRegression")
 
         args = {}
         tune_args = {}
         tune_grid = {"fit_intercept": [True, False], "normalize": [True, False]}
         tune_distributions = {}
 
-        # if not gpu_imported:
-        args["n_jobs"] = globals_dict["n_jobs_param"]
+        if not gpu_imported:
+            args["n_jobs"] = globals_dict["n_jobs_param"]
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
@@ -232,7 +232,7 @@ class LinearRegressionContainer(RegressorContainer):
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
-            is_gpu_enabled=False,
+            is_gpu_enabled=gpu_imported,
             shap=False,
         )
 
@@ -245,19 +245,19 @@ class LassoRegressionContainer(RegressorContainer):
 
         from sklearn.linear_model import Lasso
 
-        # if globals_dict["gpu_param"] == "force":
-        #     from cuml.linear_model import Lasso
-        #
-        #     logger.info("Imported cuml.linear_model.Lasso")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         from cuml.linear_model import Lasso
-        #
-        #         logger.info("Imported cuml.linear_model.Lasso")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.linear_model.Lasso")
+        if globals_dict["gpu_param"] == "force":
+            from cuml.linear_model import Lasso
+
+            logger.info("Imported cuml.linear_model.Lasso")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.linear_model import Lasso
+
+                logger.info("Imported cuml.linear_model.Lasso")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.linear_model.Lasso")
 
         args = {}
         tune_args = {}
@@ -268,8 +268,8 @@ class LassoRegressionContainer(RegressorContainer):
         }
         tune_distributions = {"alpha": UniformDistribution(0.001, 10)}
 
-        # if not gpu_imported:
-        args["random_state"] = globals_dict["seed"]
+        if not gpu_imported:
+            args["random_state"] = globals_dict["seed"]
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
@@ -281,7 +281,7 @@ class LassoRegressionContainer(RegressorContainer):
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
-            is_gpu_enabled=False,
+            is_gpu_enabled=gpu_imported,
             shap=False,
         )
 
@@ -294,19 +294,19 @@ class RidgeRegressionContainer(RegressorContainer):
 
         from sklearn.linear_model import Ridge
 
-        # if globals_dict["gpu_param"] == "force":
-        #     from cuml.linear_model import Ridge
-        #
-        #     logger.info("Imported cuml.linear_model.Ridge")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         from cuml.linear_model import Ridge
-        #
-        #         logger.info("Imported cuml.linear_model.Ridge")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.linear_model.Ridge")
+        if globals_dict["gpu_param"] == "force":
+            from cuml.linear_model import Ridge
+
+            logger.info("Imported cuml.linear_model.Ridge")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.linear_model import Ridge
+
+                logger.info("Imported cuml.linear_model.Ridge")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.linear_model.Ridge")
 
         args = {}
         tune_args = {}
@@ -317,8 +317,8 @@ class RidgeRegressionContainer(RegressorContainer):
         }
         tune_distributions = {"alpha": UniformDistribution(0.001, 10)}
 
-        # if not gpu_imported:
-        args["random_state"] = globals_dict["seed"]
+        if not gpu_imported:
+            args["random_state"] = globals_dict["seed"]
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
@@ -330,7 +330,7 @@ class RidgeRegressionContainer(RegressorContainer):
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
-            is_gpu_enabled=False,
+            is_gpu_enabled=gpu_imported,
             shap=False,
         )
 
@@ -343,19 +343,19 @@ class ElasticNetContainer(RegressorContainer):
 
         from sklearn.linear_model import ElasticNet
 
-        # if globals_dict["gpu_param"] == "force":
-        #     from cuml.linear_model import ElasticNet
-        #
-        #     logger.info("Imported cuml.linear_model.ElasticNet")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         from cuml.linear_model import ElasticNet
-        #
-        #         logger.info("Imported cuml.linear_model.ElasticNet")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.linear_model.ElasticNet")
+        if globals_dict["gpu_param"] == "force":
+            from cuml.linear_model import ElasticNet
+
+            logger.info("Imported cuml.linear_model.ElasticNet")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.linear_model import ElasticNet
+
+                logger.info("Imported cuml.linear_model.ElasticNet")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.linear_model.ElasticNet")
 
         args = {}
         tune_args = {}
@@ -370,8 +370,8 @@ class ElasticNetContainer(RegressorContainer):
             "l1_ratio": UniformDistribution(0.01, 0.9999999999),
         }
 
-        # if not gpu_imported:
-        args["random_state"] = globals_dict["seed"]
+        if not gpu_imported:
+            args["random_state"] = globals_dict["seed"]
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
@@ -383,7 +383,7 @@ class ElasticNetContainer(RegressorContainer):
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
-            is_gpu_enabled=False,
+            is_gpu_enabled=gpu_imported,
             shap=False,
         )
 
@@ -941,19 +941,19 @@ class SVRContainer(RegressorContainer):
 
         from sklearn.svm import SVR
 
-        # if globals_dict["gpu_param"] == "force":
-        #     from cuml.svm import SVR
-        #
-        #     logger.info("Imported cuml.svm.SVR")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         from cuml.svm import SVR
-        #
-        #         logger.info("Imported cuml.svm.SVR")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.svm.SVR")
+        if globals_dict["gpu_param"] == "force":
+            from cuml.svm import SVR
+
+            logger.info("Imported cuml.svm.SVR")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.svm import SVR
+
+                logger.info("Imported cuml.svm.SVR")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.svm.SVR")
 
         args = {}
         tune_args = {}
@@ -966,8 +966,8 @@ class SVRContainer(RegressorContainer):
             "C": UniformDistribution(0, 10),
         }
 
-        # if not gpu_imported:
-        tune_grid["shrinking"] = [True, False]
+        if not gpu_imported:
+            tune_grid["shrinking"] = [True, False]
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
@@ -979,7 +979,7 @@ class SVRContainer(RegressorContainer):
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
-            is_gpu_enabled=False,
+            is_gpu_enabled=gpu_imported,
             is_turbo=False,
             shap=False,
         )
@@ -993,19 +993,19 @@ class KNeighborsRegressorContainer(RegressorContainer):
 
         from sklearn.neighbors import KNeighborsRegressor
 
-        # if globals_dict["gpu_param"] == "force":
-        #     from cuml.neighbors import KNeighborsRegressor
-        #
-        #     logger.info("Imported cuml.neighbors.KNeighborsRegressor")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         from cuml.neighbors import KNeighborsRegressor
-        #
-        #         logger.info("Imported cuml.neighbors.KNeighborsRegressor")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.neighbors.KNeighborsRegressor")
+        if globals_dict["gpu_param"] == "force":
+            from cuml.neighbors import KNeighborsRegressor
+
+            logger.info("Imported cuml.neighbors.KNeighborsRegressor")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                from cuml.neighbors import KNeighborsRegressor
+
+                logger.info("Imported cuml.neighbors.KNeighborsRegressor")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.neighbors.KNeighborsRegressor")
 
         args = {}
         tune_args = {}
@@ -1017,9 +1017,9 @@ class KNeighborsRegressorContainer(RegressorContainer):
         tune_grid["weights"] = ["uniform"]
         tune_grid["metric"] = ["minkowski", "euclidean", "manhattan"]
 
-        # if not gpu_imported:
-        args["n_jobs"] = globals_dict["n_jobs_param"]
-        tune_grid["weights"] += ["distance"]
+        if not gpu_imported:
+            args["n_jobs"] = globals_dict["n_jobs_param"]
+            tune_grid["weights"] += ["distance"]
 
         tune_distributions["n_neighbors"] = IntUniformDistribution(1, 51)
 
@@ -1033,7 +1033,7 @@ class KNeighborsRegressorContainer(RegressorContainer):
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
-            is_gpu_enabled=False,
+            is_gpu_enabled=gpu_imported,
             shap=False,
         )
 
@@ -1100,41 +1100,41 @@ class RandomForestRegressorContainer(RegressorContainer):
         gpu_imported = False
 
         from sklearn.ensemble import RandomForestRegressor
-        # 
-        # if globals_dict["gpu_param"] == "force":
-        #     import cuml.ensemble
-        # 
-        #     logger.info("Imported cuml.ensemble")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         import cuml.ensemble
-        # 
-        #         logger.info("Imported cuml.ensemble")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.ensemble")
-        # 
-        # if gpu_imported:
-        #     RandomForestRegressor = (
-        #         pycaret.internal.cuml_wrappers.get_random_forest_regressor()
-        #     )
 
-        # if not gpu_imported:
-        args = {
-            "random_state": globals_dict["seed"],
-            "n_jobs": globals_dict["n_jobs_param"],
-        }
-        # else:
-        #     import cuml
-        #     if version.parse(cuml.__version__) >= version.parse("0.19"):
-        #         args = {
-        #         "random_state": globals_dict["seed"],
-        #         }
-        #     else:
-        #         args = {
-        #             "seed": globals_dict["seed"]
-        #         }
+        if globals_dict["gpu_param"] == "force":
+            import cuml.ensemble
+
+            logger.info("Imported cuml.ensemble")
+            gpu_imported = True
+        elif globals_dict["gpu_param"]:
+            try:
+                import cuml.ensemble
+
+                logger.info("Imported cuml.ensemble")
+                gpu_imported = True
+            except ImportError:
+                logger.warning("Couldn't import cuml.ensemble")
+
+        if gpu_imported:
+            RandomForestRegressor = (
+                pycaret.internal.cuml_wrappers.get_random_forest_regressor()
+            )
+
+        if not gpu_imported:
+            args = {
+                "random_state": globals_dict["seed"],
+                "n_jobs": globals_dict["n_jobs_param"],
+            }
+        else:
+            import cuml
+            if version.parse(cuml.__version__) >= version.parse("0.19"):
+                args = {
+                "random_state": globals_dict["seed"],
+                }
+            else:
+                args = {
+                    "seed": globals_dict["seed"]
+                }
                 
         tune_args = {}
         tune_grid = {
@@ -1167,14 +1167,14 @@ class RandomForestRegressorContainer(RegressorContainer):
             "max_features": UniformDistribution(0.4, 1),
         }
 
-        # if gpu_imported:
-        #     tune_grid["split_criterion"] = [2, 3]
-        # else:
-        tune_grid["criterion"] = ["mse", "mae"]
-        tune_grid["min_samples_split"] = [2, 5, 7, 9, 10]
-        tune_grid["min_samples_leaf"] = [2, 3, 4, 5, 6]
-        tune_distributions["min_samples_split"] = IntUniformDistribution(2, 10)
-        tune_distributions["min_samples_leaf"] = IntUniformDistribution(2, 6)
+        if gpu_imported:
+            tune_grid["split_criterion"] = [2, 3]
+        else:
+            tune_grid["criterion"] = ["mse", "mae"]
+            tune_grid["min_samples_split"] = [2, 5, 7, 9, 10]
+            tune_grid["min_samples_leaf"] = [2, 3, 4, 5, 6]
+            tune_distributions["min_samples_split"] = IntUniformDistribution(2, 10)
+            tune_distributions["min_samples_leaf"] = IntUniformDistribution(2, 6)
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
@@ -1186,7 +1186,7 @@ class RandomForestRegressorContainer(RegressorContainer):
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
             tune_args=tune_args,
-            is_gpu_enabled=False,
+            is_gpu_enabled=gpu_imported,
             shap="type2",
         )
 
@@ -1458,7 +1458,7 @@ class XGBRegressorContainer(RegressorContainer):
             "n_jobs": globals_dict["n_jobs_param"],
             "verbosity": 0,
             "booster": "gbtree",
-            "tree_method": "auto",
+            "tree_method": "gpu_hist" if globals_dict["gpu_param"] else "auto",
         }
         tune_args = {}
         tune_grid = {
@@ -1554,7 +1554,7 @@ class XGBRegressorContainer(RegressorContainer):
             tune_distribution=tune_distributions,
             tune_args=tune_args,
             shap="type2",
-            is_gpu_enabled=False,
+            is_gpu_enabled=bool(globals_dict["gpu_param"]),
         )
 
 
@@ -1563,6 +1563,7 @@ class LGBMRegressorContainer(RegressorContainer):
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
         from lightgbm import LGBMRegressor
+        from lightgbm.basic import LightGBMError
 
         args = {
             "random_state": globals_dict["seed"],
@@ -1674,28 +1675,29 @@ class LGBMRegressorContainer(RegressorContainer):
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
         is_gpu_enabled = False
-        # if globals_dict["gpu_param"]:
-        #     try:
-        #         lgb = LGBMRegressor(device="gpu")
-        #         lgb.fit(np.zeros((2, 2)), [0, 1])
-        #         is_gpu_enabled = "gpu"
-        #         del lgb
-        #     except:
-        #         try:
-        #             lgb = LGBMRegressor(device="cuda")
-        #             lgb.fit(np.zeros((2, 2)), [0, 1])
-        #             is_gpu_enabled = "cuda"
-        #             del lgb
-        #         except LightGBMError:
-        #             is_gpu_enabled = False
-        #             if globals_dict["gpu_param"] == "force":
-        #                 raise RuntimeError(
-        #                     f"LightGBM GPU mode not available. Consult https://lightgbm.readthedocs.io/en/latest/GPU-Tutorial.html."
-        #                 )
-        # if is_gpu_enabled=="gpu":
-        #     args["device"] = "gpu"
-        # elif is_gpu_enabled=="cuda":
-        #     args["device"] = "cuda"
+        if globals_dict["gpu_param"]:
+            try:
+                lgb = LGBMRegressor(device="gpu")
+                lgb.fit(np.zeros((2, 2)), [0, 1])
+                is_gpu_enabled = "gpu"
+                del lgb
+            except:
+                try:
+                    lgb = LGBMRegressor(device="cuda")
+                    lgb.fit(np.zeros((2, 2)), [0, 1])
+                    is_gpu_enabled = "cuda"
+                    del lgb
+                except LightGBMError:
+                    is_gpu_enabled = False
+                    if globals_dict["gpu_param"] == "force":
+                        raise RuntimeError(
+                            f"LightGBM GPU mode not available. Consult https://lightgbm.readthedocs.io/en/latest/GPU-Tutorial.html."
+                        )
+
+        if is_gpu_enabled=="gpu":
+            args["device"] = "gpu"
+        elif is_gpu_enabled=="cuda":
+            args["device"] = "cuda"
 
         super().__init__(
             id="lightgbm",
@@ -1706,7 +1708,7 @@ class LGBMRegressorContainer(RegressorContainer):
             tune_distribution=tune_distributions,
             tune_args=tune_args,
             shap="type2",
-            is_gpu_enabled=False,
+            is_gpu_enabled=is_gpu_enabled,
         )
 
 
@@ -1733,16 +1735,16 @@ class CatBoostRegressorContainer(RegressorContainer):
         # suppress output
         logging.getLogger("catboost").setLevel(logging.ERROR)
 
-        # use_gpu = globals_dict["gpu_param"] == "force" or (
-        #     globals_dict["gpu_param"] and len(globals_dict["X_train"]) >= 50000
-        # )
+        use_gpu = globals_dict["gpu_param"] == "force" or (
+            globals_dict["gpu_param"] and len(globals_dict["X_train"]) >= 50000
+        )
 
         args = {
             "random_state": globals_dict["seed"],
             "verbose": False,
             "thread_count": globals_dict["n_jobs_param"],
-            "task_type": "CPU",
-            "border_count": 254,
+            "task_type": "GPU" if use_gpu else "CPU",
+            "border_count": 32 if use_gpu else 254,
         }
         tune_args = {}
         tune_grid = {
@@ -1775,9 +1777,9 @@ class CatBoostRegressorContainer(RegressorContainer):
             "l2_leaf_reg": IntUniformDistribution(1, 200, log=True),
         }
 
-        # if use_gpu:
-        #     tune_grid["depth"] = list(range(1, 9))
-        #     tune_distributions["depth"] = (IntUniformDistribution(1, 8),)
+        if use_gpu:
+            tune_grid["depth"] = list(range(1, 9))
+            tune_distributions["depth"] = (IntUniformDistribution(1, 8),)
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
@@ -1790,7 +1792,7 @@ class CatBoostRegressorContainer(RegressorContainer):
             tune_distribution=tune_distributions,
             tune_args=tune_args,
             shap="type2",
-            is_gpu_enabled=False,
+            is_gpu_enabled=use_gpu,
         )
 
 
@@ -1802,7 +1804,7 @@ class BaggingRegressorContainer(RegressorContainer):
 
         args = {
             "random_state": globals_dict["seed"],
-            "n_jobs": None,
+            "n_jobs": 1 if globals_dict["gpu_param"] else None,
         }
         tune_args = {}
         tune_grid = {
@@ -1894,6 +1896,6 @@ class VotingRegressorContainer(RegressorContainer):
 def get_all_model_containers(
     globals_dict: dict, raise_errors: bool = True
 ) -> Dict[str, RegressorContainer]:
-    return pycaret.containers.models.base_container.get_all_containers(
+    return pycaret.containers.base_container.get_all_containers(
         globals(), globals_dict, RegressorContainer, raise_errors
     )

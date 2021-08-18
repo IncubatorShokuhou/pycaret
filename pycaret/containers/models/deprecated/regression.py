@@ -9,15 +9,14 @@
 # to complete the process. Refer to the existing classes for examples.
 
 import logging
-from typing import Union, Dict, Any, Optional
-from pycaret.containers.models.base_model import (
+from typing import Union, Any
+from pycaret.containers.models.deprecated.base_model import (
     ModelContainer,
     leftover_parameters_to_categorical_distributions,
 )
 from pycaret.internal.utils import (
     param_grid_to_lists,
     get_logger,
-    get_class_name,
     np_list_arange,
 )
 from pycaret.internal.distributions import *
@@ -1103,7 +1102,6 @@ class RandomForestRegressorContainer(RegressorContainer):
         from sklearn.ensemble import RandomForestRegressor
 
         if globals_dict["gpu_param"] == "force":
-            import cuml.ensemble
 
             logger.info("Imported cuml.ensemble")
             gpu_imported = True

@@ -22,7 +22,7 @@ from sktime.transformations.series.detrend import ConditionalDeseasonalizer, Det
 from sktime.forecasting.base._sktime import DEFAULT_ALPHA  # type: ignore
 from sklearn.utils.validation import check_is_fitted  # type: ignore
 
-from pycaret.containers.models.base_model import (
+from pycaret.containers.models import (
     ModelContainer,
     leftover_parameters_to_categorical_distributions,
 )

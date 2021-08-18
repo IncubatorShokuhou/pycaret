@@ -12,7 +12,7 @@ import logging
 
 import pycaret.containers.base_container
 import pycaret.internal.cuml_wrappers
-from pycaret.containers.models.anomaly import (
+from pycaret.containers.models.deprecated.anomaly import (
     ABODAnomalyContainer,
     AnomalyContainer,
     CBLOFAnomalyContainer,

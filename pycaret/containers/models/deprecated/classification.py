@@ -11,7 +11,7 @@
 import logging
 import pycaret.internal.cuml_wrappers
 from typing import Union, Any
-from pycaret.containers.base_model import (
+from pycaret.containers.models.deprecated.base_model import (
     ModelContainer,
     leftover_parameters_to_categorical_distributions,
 )
@@ -21,10 +21,8 @@ from pycaret.internal.utils import (
     np_list_arange,
 )
 from pycaret.internal.distributions import *
-import pycaret.containers.models.base_container
+import pycaret.containers.base_container
 import numpy as np
-from packaging import version
-from dask_ml.ensemble import BlockwiseVotingClassifier
 
 
 class ClassifierContainer(ModelContainer):
@@ -116,7 +114,8 @@ class ClassifierContainer(ModelContainer):
             tune_distribution: Dict[str, Distribution] = None,
             tune_args: Dict[str, Any] = None,
             shap: Union[bool, str] = False,
-            is_gpu_enabled: Optional[bool] = None,
+            is_gpu_enabled: Optional[bool] = False,
+            is_distribution_enabled: Optional[bool] = False,
             is_boosting_supported: Optional[bool] = None,
             is_soft_voting_supported: Optional[bool] = None,
             tunable: Optional[type] = None,
@@ -173,11 +172,8 @@ class ClassifierContainer(ModelContainer):
                 self.is_boosting_supported = is_boosting_supported
             if is_soft_voting_supported is not None:
                 self.is_soft_voting_supported = is_soft_voting_supported
-
-        if is_gpu_enabled is not None:
-            self.is_gpu_enabled = is_gpu_enabled
-        else:
-            self.is_gpu_enabled = bool(self.get_package_name() == "cuml")
+        self.is_gpu_enabled = is_gpu_enabled
+        self.is_distribution_enabled = is_distribution_enabled
 
     def get_dict(self, internal: bool = True) -> Dict[str, Any]:
         """
@@ -213,6 +209,7 @@ class ClassifierContainer(ModelContainer):
                 ("Tune Args", self.tune_args),
                 ("SHAP", self.shap),
                 ("GPU Enabled", self.is_gpu_enabled),
+                ("Distribution Enabled", self.is_distribution_enabled),
                 ("Boosting Supported", self.is_boosting_supported),
                 ("Soft Voting", self.is_soft_voting_supported),
                 ("Tunable Class", self.tunable),
@@ -225,10 +222,9 @@ class LogisticRegressionClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        gpu_imported = False
 
-        # from sklearn.linear_model import LogisticRegression
-        from dask_ml.linear_model import LogisticRegression
+        from sklearn.linear_model import LogisticRegression
+
         args = {"max_iter": 1000}
         tune_args = {}
         tune_grid = {}
@@ -260,14 +256,23 @@ class KNeighborsClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        gpu_imported = False
 
         from sklearn.neighbors import KNeighborsClassifier
 
-        clf = BlockwiseVotingClassifier(
-            KNeighborsClassifier,
-            classes=[0, 1]
-        )
+        # if globals_dict["gpu_param"] == "force":
+        #     from cuml.neighbors import KNeighborsClassifier
+        #
+        #     logger.info("Imported cuml.neighbors.KNeighborsClassifier")
+        #     gpu_imported = True
+        # elif globals_dict["gpu_param"]:
+        #     try:
+        #         from cuml.neighbors import KNeighborsClassifier
+        #
+        #         logger.info("Imported cuml.neighbors.KNeighborsClassifier")
+        #         gpu_imported = True
+        #     except ImportError:
+        #         logger.warning("Couldn't import cuml.neighbors.KNeighborsClassifier")
+
         args = {}
         tune_args = {}
         tune_grid = {}
@@ -278,6 +283,7 @@ class KNeighborsClassifierContainer(ClassifierContainer):
         tune_grid["weights"] = ["uniform"]
         tune_grid["metric"] = ["minkowski", "euclidean", "manhattan"]
 
+        # if not gpu_imported:
         args["n_jobs"] = globals_dict["n_jobs_param"]
         tune_grid["weights"] += ["distance"]
 
@@ -287,7 +293,7 @@ class KNeighborsClassifierContainer(ClassifierContainer):
         super().__init__(
             id="knn",
             name="K Neighbors Classifier",
-            class_def=clf,   ## TODO: how to handle it?
+            class_def=KNeighborsClassifier,
             args=args,
             tune_grid=tune_grid,
             tune_distribution=tune_distributions,
@@ -321,10 +327,6 @@ class GaussianNBClassifierContainer(ClassifierContainer):
                 0.001,
                 0.002,
                 0.003,
-                0.004,
-                0.005,
-                0.007,
-                0.009,
                 0.004,
                 0.005,
                 0.006,
@@ -369,13 +371,13 @@ class DecisionTreeClassifierContainer(ClassifierContainer):
             "min_impurity_decrease": [
                 0,
                 0.0001,
-                0.001,
-                0.01,
                 0.0002,
-                0.002,
-                0.02,
                 0.0005,
+                0.001,
+                0.002,
                 0.005,
+                0.01,
+                0.02,
                 0.05,
                 0.1,
                 0.2,
@@ -410,8 +412,6 @@ class SGDClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        gpu_imported = False
-
         from sklearn.linear_model import SGDClassifier
 
         # if globals_dict["gpu_param"] == "force":
@@ -437,13 +437,13 @@ class SGDClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0002,
-                0.002,
-                0.02,
                 0.0005,
+                0.001,
+                0.002,
                 0.005,
+                0.01,
+                0.02,
                 0.05,
                 0.1,
                 0.15,
@@ -462,21 +462,6 @@ class SGDClassifierContainer(ClassifierContainer):
             "eta0": UniformDistribution(0.001, 0.5, log=True),
         }
 
-        # if gpu_imported:
-        #     tune_grid["learning_rate"].remove("optimal")
-        #     batch_size = [
-        #         (512, 50000),
-        #         (256, 25000),
-        #         (128, 10000),
-        #         (64, 5000),
-        #         (32, 1000),
-        #         (16, 0),
-        #     ]
-        #     for arg, x_len in batch_size:
-        #         if len(globals_dict["X_train"]) >= x_len:
-        #             args["batch_size"] = arg
-        #             break
-        # else:
         args["random_state"] = globals_dict["seed"]
         args["n_jobs"] = globals_dict["n_jobs_param"]
 
@@ -498,8 +483,6 @@ class SVCClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        gpu_imported = False
-
         from sklearn.svm import SVC
 
         # if globals_dict["gpu_param"] == "force":
@@ -533,9 +516,6 @@ class SVCClassifierContainer(ClassifierContainer):
         }
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
-
-        # if gpu_imported:
-        #     SVC = get_svc_classifier()
 
         super().__init__(
             id="rbfsvm",
@@ -595,10 +575,10 @@ class MLPClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -643,8 +623,8 @@ class RidgeClassifierContainer(ClassifierContainer):
         np.random.seed(globals_dict["seed"])
         gpu_imported = False
 
-        # from sklearn.linear_model import RidgeClassifier
-        #
+        from sklearn.linear_model import RidgeClassifier
+
         # if globals_dict["gpu_param"] == "force":
         #     import cuml.linear_model
         #
@@ -659,9 +639,8 @@ class RidgeClassifierContainer(ClassifierContainer):
         #     except ImportError:
         #         logger.warning("Couldn't import cuml.linear_model")
 
-        args = {}
+        # args = {}
         tune_args = {}
-        tune_grid = {}
         tune_distributions = {}
 
         # if gpu_imported:
@@ -698,7 +677,7 @@ class RandomForestClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        gpu_imported = False
+        # gpu_imported = False
 
         from sklearn.ensemble import RandomForestClassifier
 
@@ -721,21 +700,12 @@ class RandomForestClassifierContainer(ClassifierContainer):
         #         pycaret.internal.cuml_wrappers.get_random_forest_classifier()
         #     )
 
-        # if not gpu_imported:
         args = {
-            "random_state": globals_dict["seed"],
-            "n_jobs": globals_dict["n_jobs_param"],
-        }
-        # else:
-        #     import cuml
-        #     if version.parse(cuml.__version__) >= version.parse("0.19"):
-        #         args = {
-        #         "random_state": globals_dict["seed"],
-        #         }
-        #     else:
-        #         args = {
-        #             "seed": globals_dict["seed"]
-        #         }
+                "random_state": globals_dict["seed"],
+                "n_jobs": globals_dict["n_jobs_param"],
+            }
+            # if not gpu_imported
+            # else {"seed": globals_dict["seed"]}
 
         tune_args = {}
         tune_grid = {
@@ -744,13 +714,13 @@ class RandomForestClassifierContainer(ClassifierContainer):
             "min_impurity_decrease": [
                 0,
                 0.0001,
-                0.001,
-                0.01,
                 0.0002,
-                0.002,
-                0.02,
                 0.0005,
+                0.001,
+                0.002,
                 0.005,
+                0.01,
+                0.02,
                 0.05,
                 0.1,
                 0.2,
@@ -881,10 +851,10 @@ class GradientBoostingClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -900,13 +870,13 @@ class GradientBoostingClassifierContainer(ClassifierContainer):
             "min_impurity_decrease": [
                 0,
                 0.0001,
-                0.001,
-                0.01,
                 0.0002,
-                0.002,
-                0.02,
                 0.0005,
+                0.001,
+                0.002,
                 0.005,
+                0.01,
+                0.02,
                 0.05,
                 0.1,
                 0.2,
@@ -955,10 +925,10 @@ class LinearDiscriminantAnalysisContainer(ClassifierContainer):
                 "empirical",
                 "auto",
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.2,
@@ -1008,13 +978,13 @@ class ExtraTreesClassifierContainer(ClassifierContainer):
             "min_impurity_decrease": [
                 0,
                 0.0001,
-                0.001,
-                0.01,
                 0.0002,
-                0.002,
-                0.02,
                 0.0005,
+                0.001,
+                0.002,
                 0.005,
+                0.01,
+                0.02,
                 0.05,
                 0.1,
                 0.2,
@@ -1062,9 +1032,10 @@ class XGBClassifierContainer(ClassifierContainer):
             self.active = False
             return
 
-        if version.parse(xgboost.__version__) < version.parse("1.1.0"):
+        xgboost_version = tuple([int(x) for x in xgboost.__version__.split(".")])
+        if xgboost_version < (1, 1, 0):
             logger.warning(
-                f"Wrong xgboost version. Expected xgboost>=1.1.0, got xgboost=={xgboost.__version__}"
+                f"Wrong xgboost version. Expected xgboost>=1.1.0, got xgboost=={xgboost_version}"
             )
             self.active = False
             return
@@ -1076,20 +1047,18 @@ class XGBClassifierContainer(ClassifierContainer):
             "n_jobs": globals_dict["n_jobs_param"],
             "verbosity": 0,
             "booster": "gbtree",
-            # "tree_method": "gpu_hist" if globals_dict["gpu_param"] else "auto",
-            "tree_method": "auto",
+            "tree_method": "gpu_hist" if globals_dict["gpu_n_jobs_param"] else "auto",
         }
-
         tune_args = {}
         tune_grid = {
             "learning_rate": [
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -1107,10 +1076,10 @@ class XGBClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -1130,10 +1099,10 @@ class XGBClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -1213,10 +1182,10 @@ class LGBMClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -1231,10 +1200,10 @@ class LGBMClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -1254,10 +1223,10 @@ class LGBMClassifierContainer(ClassifierContainer):
                 0.0000001,
                 0.000001,
                 0.0001,
-                0.001,
-                0.01,
                 0.0005,
+                0.001,
                 0.005,
+                0.01,
                 0.05,
                 0.1,
                 0.15,
@@ -1293,31 +1262,6 @@ class LGBMClassifierContainer(ClassifierContainer):
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
-        is_gpu_enabled = False
-        # if globals_dict["gpu_param"]:
-        #     try:
-        #         lgb = LGBMClassifier(device="gpu")
-        #         lgb.fit(np.zeros((2, 2)), [0, 1])
-        #         is_gpu_enabled = "gpu"
-        #         del lgb
-        #     except:
-        #         try:
-        #             lgb = LGBMClassifier(device="cuda")
-        #             lgb.fit(np.zeros((2, 2)), [0, 1])
-        #             is_gpu_enabled = "cuda"
-        #             del lgb
-        #         except LightGBMError:
-        #             is_gpu_enabled = False
-        #             if globals_dict["gpu_param"] == "force":
-        #                 raise RuntimeError(
-        #                     f"LightGBM GPU mode not available. Consult https://lightgbm.readthedocs.io/en/latest/GPU-Tutorial.html."
-        #                 )
-        #
-        # if is_gpu_enabled=="gpu":
-        #     args["device"] = "gpu"
-        # elif is_gpu_enabled=="cuda":
-        #     args["device"] = "cuda"
-
         super().__init__(
             id="lightgbm",
             name="Light Gradient Boosting Machine",
@@ -1342,9 +1286,10 @@ class CatBoostClassifierContainer(ClassifierContainer):
             self.active = False
             return
 
-        if version.parse(catboost.__version__) < version.parse("0.23.2"):
+        catboost_version = tuple([int(x) for x in catboost.__version__.split(".")])
+        if catboost_version < (0, 23, 2):
             logger.warning(
-                f"Wrong catboost version. Expected catboost>=0.23.2, got catboost=={catboost.__version__}"
+                f"Wrong catboost version. Expected catboost>=0.23.2, got catboost=={catboost_version}"
             )
             self.active = False
             return
@@ -1354,16 +1299,12 @@ class CatBoostClassifierContainer(ClassifierContainer):
         # suppress output
         logging.getLogger("catboost").setLevel(logging.ERROR)
 
-        # use_gpu = globals_dict["gpu_param"] == "force" or (
-        #     globals_dict["gpu_param"] and len(globals_dict["X_train"]) >= 50000
-        # )
-
         args = {
             "random_state": globals_dict["seed"],
             "verbose": False,
             "thread_count": globals_dict["n_jobs_param"],
             "task_type": "CPU",
-            "border_count": 32,
+            "border_count": 254,
         }
         tune_args = {}
         tune_grid = {
@@ -1423,7 +1364,7 @@ class BaggingClassifierContainer(ClassifierContainer):
 
         args = {
             "random_state": globals_dict["seed"],
-            "n_jobs": None,
+            "n_jobs": 1 if globals_dict["gpu_param"] else None,
         }
         tune_args = {}
         tune_grid = {
@@ -1542,6 +1483,6 @@ class CalibratedClassifierCVContainer(ClassifierContainer):
 def get_all_model_containers(
         globals_dict: dict, raise_errors: bool = True
 ) -> Dict[str, ClassifierContainer]:
-    return pycaret.containers.models.base_container.get_all_containers(
+    return pycaret.containers.base_container.get_all_containers(
         globals(), globals_dict, ClassifierContainer, raise_errors
     )

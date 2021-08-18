@@ -227,20 +227,6 @@ class LogisticRegressionClassifierContainer(ClassifierContainer):
 
         from sklearn.linear_model import LogisticRegression
 
-        # if globals_dict["gpu_param"] == "force":
-        #     from cuml.linear_model import LogisticRegression
-        #
-        #     logger.info("Imported cuml.linear_model.LogisticRegression")
-        #     gpu_imported = True
-        # elif globals_dict["gpu_param"]:
-        #     try:
-        #         from cuml.linear_model import LogisticRegression
-        #
-        #         logger.info("Imported cuml.linear_model.LogisticRegression")
-        #         gpu_imported = True
-        #     except ImportError:
-        #         logger.warning("Couldn't import cuml.linear_model.LogisticRegression")
-
         args = {"max_iter": 1000}
         tune_args = {}
         tune_grid = {}
@@ -249,9 +235,6 @@ class LogisticRegressionClassifierContainer(ClassifierContainer):
         # common
         tune_grid["C"] = np_list_arange(0.001, 10, 0.001, inclusive=True)
 
-        # if gpu_imported:
-        #     tune_grid["penalty"] = ["l2", "l1"]
-        # else:
         args["random_state"] = globals_dict["seed"]
 
         tune_grid["class_weight"] = ["balanced", {}]
@@ -1282,23 +1265,6 @@ class LGBMClassifierContainer(ClassifierContainer):
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
-        # is_gpu_enabled = False
-        # if globals_dict["gpu_param"]:
-        #     try:
-        #         lgb = LGBMClassifier(device="gpu")
-        #         lgb.fit(np.zeros((2, 2)), [0, 1])
-        #         is_gpu_enabled = True
-        #         del lgb
-        #     except LightGBMError:
-        #         is_gpu_enabled = False
-        #         if globals_dict["gpu_param"] == "force":
-        #             raise RuntimeError(
-        #                 f"LightGBM GPU mode not available. Consult https://lightgbm.readthedocs.io/en/latest/GPU-Tutorial.html."
-        #             )
-        #
-        # if is_gpu_enabled:
-        #     args["device"] = "gpu"
-
         super().__init__(
             id="lightgbm",
             name="Light Gradient Boosting Machine",
@@ -1335,10 +1301,6 @@ class CatBoostClassifierContainer(ClassifierContainer):
 
         # suppress output
         logging.getLogger("catboost").setLevel(logging.ERROR)
-
-        # use_gpu = globals_dict["gpu_param"] == "force" or (
-        #         globals_dict["gpu_param"] and len(globals_dict["X_train"]) >= 50000
-        # )
 
         args = {
             "random_state": globals_dict["seed"],
