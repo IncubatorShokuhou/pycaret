@@ -28,7 +28,7 @@ class _PyCaretExperiment:
         # self.gpu_param = False
         self.n_jobs_param = -1
         self.gpu_n_jobs_param = 0  # not internal. so remove "_"
-        self.if_force_gpu = False # to replace gpu_param="force" TODO: rename?
+        self.use_gpu = False #
         self.use_distribution = False # TODO: rename?
         self.logger = LOGGER
 

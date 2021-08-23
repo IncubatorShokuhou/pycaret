@@ -85,7 +85,7 @@ class _TabularExperiment(_PyCaretExperiment):
                 "experiment__",
                 "n_jobs_param",
                 "gpu_n_jobs_param", # new
-                "if_force_gpu"      # new
+                "use_gpu"
                 "use_distribution"  # new
                 "master_model_container",
                 "display_container",
@@ -432,8 +432,10 @@ class _TabularExperiment(_PyCaretExperiment):
         fh: Union[List[int], int, np.array] = 1,
         fold_shuffle: bool = False,
         fold_groups: Optional[Union[str, pd.DataFrame]] = None,
-        n_jobs: Optional[int] = -1,
+        n_jobs: Optional[int] = -1,  # following 4 parameters decide which estimators will be used.
+        gpu_n_jobs: Optional[int] = 0,
         use_gpu: bool = False,  # added in pycaret==2.1
+        use_distribution: bool = False, # added new
         custom_pipeline: Union[
             Any, Tuple[str, Any], List[Any], List[Tuple[str, Any]]
         ] = None,
@@ -475,7 +477,9 @@ class _TabularExperiment(_PyCaretExperiment):
         self.transform_target_param = transform_target
         self.transform_target_method_param = transform_target_method
         self.n_jobs_param = n_jobs
-        # self.gpu_param = use_gpu
+        self.gpu_n_jobs_param = gpu_n_jobs
+        self.use_gpu = use_gpu
+        self.use_distribution = use_distribution
         self.fold_param = fold
         self.fold_groups_param = None
         self.html_param = html
@@ -2908,7 +2912,7 @@ class _TabularExperiment(_PyCaretExperiment):
                             # Catboost
                             if "depth" in model_params:
                                 param_name = f"{actual_estimator_label}__depth"
-                                param_range = np.arange(1, 8 if self.gpu_n_jobs_param else 11) # TODO: review it when writing cuml.dask
+                                param_range = np.arange(1, 8 if self.use_gpu else 11) # TODO: review it when writing cuml.dask
 
                             # SGD Classifier
                             elif f"{actual_estimator_label}__l1_ratio" in model_params:
@@ -2979,7 +2983,7 @@ class _TabularExperiment(_PyCaretExperiment):
                             # Catboost
                             if "depth" in model_params:
                                 param_name = f"{actual_estimator_label}__depth"
-                                param_range = np.arange(1, 8 if self.gpu_n_jobs_param else 11) # TODO: review it when writing cuml.dask
+                                param_range = np.arange(1, 8 if self.use_gpu else 11) # TODO: review it when writing cuml.dask
 
                             # lasso/ridge/en/llar/huber/kr/mlp/br/ard
                             elif f"{actual_estimator_label}__alpha" in model_params:

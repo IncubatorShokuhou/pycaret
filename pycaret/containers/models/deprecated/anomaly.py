@@ -91,8 +91,8 @@ class AnomalyContainer(ModelContainer):
         tune_grid: Dict[str, list] = None,
         tune_distribution: Dict[str, Distribution] = None,
         tune_args: Dict[str, Any] = None,
-        is_gpu_enabled: Optional[bool] = False, # false by default
-        is_distribution_enabled: Optional[bool] = False,
+        is_gpu_enabled: Optional[bool] = None,
+        is_distribution_enabled: Optional[bool] = None,
     ) -> None:
 
         if not args:

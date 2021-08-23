@@ -66,8 +66,10 @@ class _UnsupervisedExperiment(_TabularExperiment):
             )
             + [
                 ["Transformed Data", self.X.shape],
-                ["CPU Jobs", self.n_jobs_param],
-                ["Use GPU", self.gpu_param],
+                ["CPU Jobs", self.n_jobs_param], # 4 parallelization parameters
+                ["Use GPU", self.use_gpu],
+                ["GPU Jobs", self.gpu_n_jobs_param],
+                ["Use Distribution", self.use_distribution],
                 ["Log Experiment", self.logging_param],
                 ["Experiment Name", self.exp_name_log],
                 ["USI", self.USI],
@@ -316,6 +318,8 @@ class _UnsupervisedExperiment(_TabularExperiment):
         group_names: Optional[List[str]] = None,
         n_jobs: Optional[int] = -1,
         use_gpu: bool = False,  # added in pycaret==2.1
+        gpu_n_jobs: Optional[int] = 0,
+        use_distribution: bool = False,
         custom_pipeline: Union[
             Any, Tuple[str, Any], List[Any], List[Tuple[str, Any]]
         ] = None,
@@ -382,6 +386,8 @@ class _UnsupervisedExperiment(_TabularExperiment):
             data_split_stratify=False,
             n_jobs=n_jobs,
             use_gpu=use_gpu,
+            gpu_n_jobs=gpu_n_jobs,
+            use_distribution = use_distribution,
             custom_pipeline=custom_pipeline,
             html=html,
             session_id=session_id,

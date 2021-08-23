@@ -95,8 +95,8 @@ class AnomalyContainer(ModelContainer):
         tune_grid: Dict[str, list] = None,
         tune_distribution: Dict[str, Distribution] = None,
         tune_args: Dict[str, Any] = None,
-        is_gpu_enabled: Optional[bool] = False, # false by default
-        is_distribution_enabled: Optional[bool] = False,
+        is_gpu_enabled: Optional[bool] = None,
+        is_distribution_enabled: Optional[bool] = None,
     ) -> None:
 
         if not args:
@@ -122,8 +122,16 @@ class AnomalyContainer(ModelContainer):
         self.tune_grid = param_grid_to_lists(tune_grid)
         self.tune_distribution = tune_distribution
         self.tune_args = tune_args
-        self.is_gpu_enabled = is_gpu_enabled
-        self.is_distribution_enabled = is_distribution_enabled
+
+        if is_gpu_enabled is not None:
+            self.is_gpu_enabled = is_gpu_enabled
+        else:
+            self.is_gpu_enabled = bool(self.get_package_name() == "cuml")
+
+        if is_distribution_enabled is not None:
+            self.is_distribution_enabled = is_distribution_enabled
+        else:
+            self.is_distribution_enabled = bool(self.get_package_name() == "dask")
 
     def get_dict(self, internal: bool = True) -> Dict[str, Any]:
         """
@@ -157,7 +165,7 @@ class AnomalyContainer(ModelContainer):
                 ("Tune Distributions", self.tune_distribution),
                 ("Tune Args", self.tune_args),
                 ("GPU Enabled", self.is_gpu_enabled),
-                ("Distribution Enabled", self.is_distribution_enabled)
+                ("Distribution Enabled", self.is_distribution_enabled), # add
             ]
 
         return dict(d)
