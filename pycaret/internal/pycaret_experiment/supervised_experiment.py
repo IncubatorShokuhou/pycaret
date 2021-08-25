@@ -2095,8 +2095,9 @@ class _SupervisedExperiment(_TabularExperiment):
 
             if estimator_definition is not None:
                 search_kwargs = {**estimator_definition.tune_args, **kwargs}
+                # TODO: verify if use gpu then n_jobs=1
                 n_jobs = (
-                    self.gpu_n_jobs_param
+                    1
                     if estimator_definition.is_gpu_enabled
                     else self.n_jobs_param
                 )
@@ -2227,7 +2228,7 @@ class _SupervisedExperiment(_TabularExperiment):
                             cv=fold,
                             max_iters=early_stopping_max_iters,
                             n_jobs=n_jobs,
-                            use_gpu=self.gpu_param,
+                            use_gpu=bool(self.gpu_n_jobs_param),
                             refit=False,
                             verbose=tuner_verbose,
                             pipeline_auto_early_stop=True,
@@ -2280,7 +2281,7 @@ class _SupervisedExperiment(_TabularExperiment):
                             random_state=self.seed,
                             max_iters=early_stopping_max_iters,
                             n_jobs=n_jobs,
-                            use_gpu=self.gpu_param,
+                            use_gpu=bool(self.gpu_n_jobs_param),
                             refit=True,
                             verbose=tuner_verbose,
                             pipeline_auto_early_stop=True,
@@ -3108,18 +3109,18 @@ class _SupervisedExperiment(_TabularExperiment):
 
         if self._ml_usecase == MLUsecase.CLASSIFICATION:
             model = voting_model_definition.class_def(
-                estimators=estimator_list, voting=method, n_jobs=self._gpu_n_jobs_param
+                estimators=estimator_list, voting=method, n_jobs=self.n_jobs_param
             )
         elif self._ml_usecase == MLUsecase.TIME_SERIES:
             model = voting_model_definition.class_def(
                 forecasters=estimator_list,
                 method=method,
                 weights=weights,
-                n_jobs=self._gpu_n_jobs_param,
+                n_jobs=self.n_jobs_param,
             )
         else:
             model = voting_model_definition.class_def(
-                estimators=estimator_list, n_jobs=self._gpu_n_jobs_param
+                estimators=estimator_list, n_jobs=self.n_jobs_param
             )
 
         display.update_monitor(2, voting_model_definition.name)
@@ -3474,7 +3475,7 @@ class _SupervisedExperiment(_TabularExperiment):
                 final_estimator=meta_model,
                 cv=fold,
                 stack_method=method,
-                n_jobs=self._gpu_n_jobs_param,
+                n_jobs=self.n_jobs_param,
                 passthrough=restack,
             )
         else:
@@ -3482,7 +3483,7 @@ class _SupervisedExperiment(_TabularExperiment):
                 estimators=estimator_list,
                 final_estimator=meta_model,
                 cv=fold,
-                n_jobs=self._gpu_n_jobs_param,
+                n_jobs=self.n_jobs_param,
                 passthrough=restack,
             )
 
@@ -3649,7 +3650,7 @@ class _SupervisedExperiment(_TabularExperiment):
             try:
                 import shap
             except ImportError:
-                logger.error(
+                self.logger.error(
                     "shap library not found. pip install shap to use interpret_model function."
                 )
                 raise ImportError(
@@ -3661,7 +3662,7 @@ class _SupervisedExperiment(_TabularExperiment):
             try:
                 import pdpbox
             except ImportError:
-                logger.error(
+                self.logger.error(
                     "pdpbox library not found. pip install pdpbox to generate pdp plot in interpret_model function."
                 )
                 raise ImportError(
@@ -3991,7 +3992,6 @@ class _SupervisedExperiment(_TabularExperiment):
                 f"type parameter only accepts {', '.join(list(model_type) + str(None))}."
             )
 
-        self.logger.info(f"gpu_param set to {self.gpu_param}")
 
         _, model_containers = self._get_models(raise_errors)
 
