@@ -9,25 +9,28 @@
 # to complete the process. Refer to the existing classes for examples.
 
 import logging
-import pycaret.internal.cuml_wrappers
-from typing import Union, Dict, Any, Optional
-from pycaret.containers.models.base_model import (
-    ModelContainer,
-    leftover_parameters_to_categorical_distributions,
-)
-from pycaret.internal.cuml_wrappers import get_svc_classifier,get_ridge_classifier,get_random_forest_classifier
-from pycaret.internal.dask_wrappers import get_dask_kneighbors_classifier, get_dask_decision_tree_classifier, \
-    get_dask_sgd_classifier, get_dask_svc_classifier, get_dask_gussian_process_classifier, get_dask_mlp_classifier, \
-    get_dask_tunable_mlp_classifier, get_dask_ridge_classifier
-from pycaret.internal.utils import (
-    param_grid_to_lists,
-    get_logger,
-    get_class_name,
-    np_list_arange,
-)
-from pycaret.internal.distributions import *
-import pycaret.containers.base_container
+from typing import Any, Dict, Optional, Union
+
 import numpy as np
+
+import pycaret.containers.base_container
+import pycaret.internal.cuml_wrappers
+from pycaret.containers.models.base_model import (
+    ModelContainer, leftover_parameters_to_categorical_distributions)
+from pycaret.internal.cuml_wrappers import (get_random_forest_classifier,
+                                            get_ridge_classifier,
+                                            get_svc_classifier)
+from pycaret.internal.dask_wrappers import (
+    get_dask_decision_tree_classifier, get_dask_gussian_process_classifier,
+    get_dask_kneighbors_classifier, get_dask_mlp_classifier,
+    get_dask_ridge_classifier, get_dask_sgd_classifier,
+    get_dask_svc_classifier, get_dask_tunable_mlp_classifier, get_dask_random_forest_classifier,
+    get_dask_quadratic_discriminant_analysis_classifier, get_dask_adaboost_classifier,
+    get_dask_gradient_boosting_classifier, get_dask_linear_discriminant_analysis_classifier,
+    get_dask_extra_trees_classifier, get_dask_catboost_classifier)
+from pycaret.internal.distributions import *
+from pycaret.internal.utils import (get_class_name, get_logger, np_list_arange,
+                                    param_grid_to_lists)
 
 
 class ClassifierContainer(ModelContainer):
@@ -248,7 +251,7 @@ class LogisticRegressionClassifierContainer(ClassifierContainer):
                 gpu_used = True
             elif globals_dict["use_gpu"]:
                 try:
-                    from cuml.linear_model import LogisticRegression
+                    import cuml.linear_model
                     logger.info("Imported cuml.linear_model.LogisticRegression")
                     gpu_used = True
                 except ImportError:
@@ -512,8 +515,15 @@ class SGDClassifierContainer(ClassifierContainer):
                 except ImportError:
                     logger.warning("Couldn't import cuml.MBSGDClassifier")
         else:
+            try:
+                import dask_ml.ensemble
+                distribution_used = True
+            except ImportError:
+                logger.warning("Couldn't import dask_ml.ensemble")
+
+        if distribution_used:
             SGDClassifier = get_dask_sgd_classifier()
-            distribution_used  = True
+
 
         args = {"tol": 0.001, "loss": "hinge", "penalty": "l2", "eta0": 0.001}
         tune_args = {}
@@ -688,6 +698,7 @@ class MLPClassifierContainer(ClassifierContainer):
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
         from sklearn.neural_network import MLPClassifier
+
         from pycaret.internal.tunable import TunableMLPClassifier
         distribution_used = False
 
@@ -785,12 +796,9 @@ class RidgeClassifierContainer(ClassifierContainer):
         else:
             args = {"random_state": globals_dict["seed"]}
 
-        tune_grid = {
-            "normalize": [True, False],
-        }
+        tune_grid = {"normalize": [True, False], "alpha": np_list_arange(0.01, 10, 0.01, inclusive=False),
+                     "fit_intercept": [True, False]}
 
-        tune_grid["alpha"] = np_list_arange(0.01, 10, 0.01, inclusive=False)
-        tune_grid["fit_intercept"] = [True, False]
         tune_distributions["alpha"] = UniformDistribution(0.001, 10)
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
@@ -816,25 +824,36 @@ class RandomForestClassifierContainer(ClassifierContainer):
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
         gpu_used = False
-
+        distribution_used = False
         from sklearn.ensemble import RandomForestClassifier
 
-        if globals_dict["use_gpu"] == "force":
-            import cuml.ensemble
-
-            logger.info("Imported cuml.ensemble")
-            gpu_used = True
-        elif globals_dict["use_gpu"]:
-            try:
+        if not globals_dict["use_distribution"]:
+            if globals_dict["use_gpu"] == "force":
                 import cuml.ensemble
 
                 logger.info("Imported cuml.ensemble")
                 gpu_used = True
-            except ImportError:
-                logger.warning("Couldn't import cuml.ensemble")
+            elif globals_dict["use_gpu"]:
+                try:
+                    import cuml.ensemble
 
-        if gpu_used:
-            RandomForestClassifier = get_random_forest_classifier()
+                    logger.info("Imported cuml.ensemble")
+                    gpu_used = True
+                except ImportError:
+                    logger.warning("Couldn't import cuml.ensemble")
+        else:
+            try:
+                import dask_ml.ensemble
+                logger.info("Imported dask_ml.ensemble")
+                distribution_used = True
+            except ImportError:
+                logger.warning("Couldn't import dask_ml.ensemble")
+
+        if not distribution_used:
+            if gpu_used:
+                RandomForestClassifier = get_random_forest_classifier()
+        else:
+            RandomForestClassifier = get_dask_random_forest_classifier()
 
         args = (
             {
@@ -897,6 +916,7 @@ class RandomForestClassifierContainer(ClassifierContainer):
             tune_args=tune_args,
             shap="type1",
             is_gpu_enabled=gpu_used,
+            is_distribution_enabled=distribution_used,
         )
         if gpu_used:
             self.reference = get_class_name(cuml.ensemble.RandomForestClassifier)
@@ -906,7 +926,13 @@ class QuadraticDiscriminantAnalysisContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+        distribution_used = False
+
+        if not globals_dict["use_distribution"]:
+            from sklearn.discriminant_analysis import QuadraticDiscriminantAnalysis
+        else:
+            QuadraticDiscriminantAnalysis = get_dask_quadratic_discriminant_analysis_classifier()
+            distribution_used = True
 
         args = {}
         tune_args = {}
@@ -925,6 +951,7 @@ class QuadraticDiscriminantAnalysisContainer(ClassifierContainer):
             tune_args=tune_args,
             shap=False,
             is_gpu_enabled=False,
+            is_distribution_enabled=distribution_used,
         )
 
 
@@ -932,7 +959,13 @@ class AdaBoostClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from sklearn.ensemble import AdaBoostClassifier
+        distribution_used = False
+
+        if not globals_dict["use_distribution"]:
+            from sklearn.ensemble import AdaBoostClassifier
+        else:
+            AdaBoostClassifier = get_dask_adaboost_classifier()
+            distribution_used = True
 
         args = {"random_state": globals_dict["seed"]}
         tune_args = {}
@@ -973,6 +1006,7 @@ class AdaBoostClassifierContainer(ClassifierContainer):
             tune_args=tune_args,
             shap=False,
             is_gpu_enabled=False,
+            is_distribution_enabled=distribution_used,
         )
 
 
@@ -980,7 +1014,12 @@ class GradientBoostingClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from sklearn.ensemble import GradientBoostingClassifier
+        distribution_used=False
+        if not globals_dict["use_distribution"]:
+            from sklearn.ensemble import GradientBoostingClassifier
+        else:
+            GradientBoostingClassifier = get_dask_gradient_boosting_classifier()
+            distribution_used = True
 
         args = {"random_state": globals_dict["seed"]}
         tune_args = {}
@@ -1048,6 +1087,7 @@ class GradientBoostingClassifierContainer(ClassifierContainer):
             tune_args=tune_args,
             shap=False,
             is_gpu_enabled=False,
+            is_distribution_enabled=distribution_used,
         )
 
 
@@ -1055,7 +1095,14 @@ class LinearDiscriminantAnalysisContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+        distribution_used=False
+
+        if not globals_dict["use_distribution"]:
+            from sklearn.discriminant_analysis import LinearDiscriminantAnalysis
+        else:
+            LinearDiscriminantAnalysis = get_dask_linear_discriminant_analysis_classifier()
+            distribution_used = True
+
 
         args = {}
         tune_args = {}
@@ -1098,6 +1145,7 @@ class LinearDiscriminantAnalysisContainer(ClassifierContainer):
             tune_args=tune_args,
             shap=False,
             is_gpu_enabled=False,
+            is_distribution_enabled=distribution_used,
         )
 
 
@@ -1105,7 +1153,14 @@ class ExtraTreesClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from sklearn.ensemble import ExtraTreesClassifier
+        distribution_used=False
+
+        if not globals_dict["use_distribution"]:
+            from sklearn.ensemble import ExtraTreesClassifier
+        else:
+            ExtraTreesClassifier = get_dask_extra_trees_classifier()
+            distribution_used = True
+
 
         args = {
             "random_state": globals_dict["seed"],
@@ -1160,6 +1215,7 @@ class ExtraTreesClassifierContainer(ClassifierContainer):
             tune_args=tune_args,
             shap="type1",
             is_gpu_enabled=False,
+            is_distribution_enabled=distribution_used,
         )
 
 
@@ -1182,7 +1238,10 @@ class XGBClassifierContainer(ClassifierContainer):
             self.active = False
             return
 
-        from xgboost import XGBClassifier
+        if not globals_dict["use_distribution"]:
+            from xgboost import XGBClassifier
+        else:
+            from xgboost.dask import DaskXGBClassifier as XGBClassifier
 
         args = {
             "random_state": globals_dict["seed"],
@@ -1286,6 +1345,7 @@ class XGBClassifierContainer(ClassifierContainer):
             tune_args=tune_args,
             shap="type2",
             is_gpu_enabled=bool(globals_dict["use_gpu"]),
+            is_distribution_enabled=bool(globals_dict["use_distribution"]),
         )
 
 
@@ -1293,8 +1353,15 @@ class LGBMClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
-        from lightgbm import LGBMClassifier
         from lightgbm.basic import LightGBMError
+        gpu_used = False
+        distribution_used = False
+
+        if globals_dict["use_distribution"]:
+            from lightgbm import DaskLGBMClassifier as LGBMClassifier
+            distribution_used = True
+        else:
+            from lightgbm import LGBMClassifier
 
         args = {
             "random_state": globals_dict["seed"],
@@ -1405,21 +1472,21 @@ class LGBMClassifierContainer(ClassifierContainer):
 
         leftover_parameters_to_categorical_distributions(tune_grid, tune_distributions)
 
-        is_gpu_enabled = False
+
         if globals_dict["use_gpu"]:
             try:
                 lgb = LGBMClassifier(device="gpu")
                 lgb.fit(np.zeros((2, 2)), [0, 1])
-                is_gpu_enabled = True
+                gpu_used = True
                 del lgb
             except LightGBMError:
-                is_gpu_enabled = False
+                gpu_used = False
                 if globals_dict["use_gpu"] == "force":
                     raise RuntimeError(
                         f"LightGBM GPU mode not available. Consult https://lightgbm.readthedocs.io/en/latest/GPU-Tutorial.html."
                     )
 
-        if is_gpu_enabled:
+        if gpu_used:
             args["device"] = "gpu"
 
         super().__init__(
@@ -1431,7 +1498,8 @@ class LGBMClassifierContainer(ClassifierContainer):
             tune_distribution=tune_distributions,
             tune_args=tune_args,
             shap="type1",
-            is_gpu_enabled=is_gpu_enabled,
+            is_gpu_enabled=gpu_used,
+            is_distribution_enabled=distribution_used,
         )
 
 
@@ -1439,6 +1507,9 @@ class CatBoostClassifierContainer(ClassifierContainer):
     def __init__(self, globals_dict: dict) -> None:
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
+
+        distribution_used = False
+
         try:
             import catboost
         except ImportError:
@@ -1454,21 +1525,24 @@ class CatBoostClassifierContainer(ClassifierContainer):
             self.active = False
             return
 
-        from catboost import CatBoostClassifier
+        if not globals_dict["use_distribution"]:
+            from catboost import CatBoostClassifier
+        else:
+            CatBoostClassifier = get_dask_catboost_classifier()
 
         # suppress output
         logging.getLogger("catboost").setLevel(logging.ERROR)
 
-        use_gpu = globals_dict["use_gpu"] == "force" or (
+        gpu_used = globals_dict["use_gpu"] == "force" or (
             globals_dict["use_gpu"] and len(globals_dict["X_train"]) >= 50000
         )
-
+        ## TODO: distributed gpu? is it possible?
         args = {
             "random_state": globals_dict["seed"],
             "verbose": False,
             "thread_count": globals_dict["n_jobs_param"],
-            "task_type": "GPU" if use_gpu else "CPU",
-            "border_count": 32 if use_gpu else 254,
+            "task_type": "GPU" if gpu_used else "CPU",
+            "border_count": 32 if gpu_used else 254,
         }
         tune_args = {}
         tune_grid = {
@@ -1501,7 +1575,7 @@ class CatBoostClassifierContainer(ClassifierContainer):
             "l2_leaf_reg": IntUniformDistribution(1, 200, log=True),
         }
 
-        if use_gpu:
+        if gpu_used:
             tune_grid["depth"] = list(range(1, 9))
             tune_distributions["depth"] = (IntUniformDistribution(1, 8),)
 
@@ -1516,7 +1590,8 @@ class CatBoostClassifierContainer(ClassifierContainer):
             tune_distribution=tune_distributions,
             tune_args=tune_args,
             shap="type2",
-            is_gpu_enabled=use_gpu,
+            is_gpu_enabled=gpu_used,
+            is_distribution_enabled=distribution_used,
         )
 
 
@@ -1528,7 +1603,7 @@ class BaggingClassifierContainer(ClassifierContainer):
 
         args = {
             "random_state": globals_dict["seed"],
-            "n_jobs": 1 if globals_dict["use_gpu"] else None,
+            "n_jobs": globals_dict["n_jobs_param"],
         }
         tune_args = {}
         tune_grid = {
@@ -1590,6 +1665,7 @@ class VotingClassifierContainer(ClassifierContainer):
         logger = get_logger()
         np.random.seed(globals_dict["seed"])
         from sklearn.ensemble import VotingClassifier
+
         from pycaret.internal.tunable import TunableVotingClassifier
 
         args = {}
